@@ -1,58 +1,112 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CityCare Medical Centre
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+CityCare is a responsive Laravel application for managing clinic departments, doctors, weekly schedules, patients, appointments, consultations, payments and management reports. The application uses role and permission checks at route, policy and view level.
 
-## About Laravel
+## Features by role
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Admin:** all clinic records, users created through doctor and patient workflows, clinic reports and exports.
+- **Receptionist:** patient records, doctor directory, appointment booking and daily appointment reports.
+- **Doctor:** own appointments, treated patient history, consultations, workload and attendance reports for their own appointments.
+- **Cashier:** appointment billing, partial payments, balance tracking, receipts and payment reports.
+- **Patient:** own profile, appointment list, visit history and payment status.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Public registration is disabled. Staff create patient records and may create a patient portal account for them. Seeded demo users share the password `password`; change these credentials before using a deployed environment.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Stack
 
-## Learning Laravel
+- Laravel 13, PHP 8.5 (PHP 8.3+ is required by the installed Laravel Excel 4 package)
+- Laravel Breeze with Blade, Tailwind CSS, Alpine.js and Vite
+- MySQL or SQLite, with portable Laravel migrations
+- Spatie Laravel Permission for roles and permissions
+- Laravel Excel for XLSX and CSV exports
+- DomPDF for PDF reports and payment receipts
+- PHPUnit feature tests
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requirements
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Install PHP with the extensions required by Laravel and Composer dependencies, Composer, Node.js and npm. MySQL is optional; SQLite is configured by default. For a fresh SQLite database, ensure `database/database.sqlite` exists and is writable.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Local setup
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```sh
+composer install
+npm install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+npm run build
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+On PowerShell, `Copy-Item .env.example .env` can be used instead of `copy`. The default `.env.example` uses SQLite, `Africa/Kampala`, UGX and the database session/cache/queue drivers. To use MySQL, set `DB_CONNECTION=mysql`, host, port, database, username and password in `.env` before migrating. The database must already exist.
 
-## Contributing
+The SQLite database is seeded with five clinic departments, eight doctors and their weekday schedules, 50 patient records, 150 appointments, consultations for completed visits, and payment records. Seeded appointments span past and future dates.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Demo accounts
 
-## Code of Conduct
+| Role | Email |
+| --- | --- |
+| Admin | `admin@citycare.test` |
+| Receptionist | `reception@citycare.test` |
+| Doctor | `doctor@citycare.test` |
+| Cashier | `cashier@citycare.test` |
+| Patient | `patient@citycare.test` |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+The demo patient portal is linked to a seeded patient record. The seeder also creates additional doctor accounts (`doctor2@citycare.test` through `doctor8@citycare.test`). All use `password`.
 
-## Security Vulnerabilities
+## Core rules
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- Appointment times must match an active doctor schedule and be in the future.
+- Doctor and patient appointments cannot overlap. Booking rechecks the constraints inside a database transaction while holding doctor/date and patient/date cache locks.
+- Doctor schedule intervals cannot overlap for the same doctor and weekday.
+- Patient phone and date of birth are unique together; likely duplicates are shown during patient entry.
+- Patients and appointments use soft deletes where history must remain available.
+- Payments are cumulative per appointment: subsequent entries add to the recorded amount, partial balances remain visible, and overpayment is rejected.
+- Patient, doctor, consultation and payment policies scope records to the signed-in person where applicable.
 
-## License
+## Reports and AJAX endpoints
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Reports are available under `/reports` for daily appointments, doctor workload, payments, patient visit history and attendance trends. Results can be downloaded as PDF, XLSX or CSV. Doctor workload and patient history reports restrict results to the signed-in doctor's own records.
+
+Authenticated JSON endpoints:
+
+- `GET /api/doctors/{doctor}/available-slots?date=YYYY-MM-DD` returns future, unbooked schedule slots and the free-slot count. Appointment rescheduling may pass `appointment_id` to exclude its current slot.
+- `GET /api/patients/search?q=...` returns up to ten patient matches for appointment and payment forms.
+- `GET /api/departments/{department}/doctors` returns active doctors in a department.
+
+The endpoints use the same authenticated session and permissions as the corresponding screens.
+
+## Data model
+
+```mermaid
+erDiagram
+    USERS ||--o| DOCTORS : "doctor account"
+    USERS ||--o| PATIENTS : "portal account"
+    DEPARTMENTS ||--o{ DOCTORS : contains
+    DOCTORS ||--o{ DOCTOR_SCHEDULES : has
+    PATIENTS ||--o{ APPOINTMENTS : books
+    DOCTORS ||--o{ APPOINTMENTS : sees
+    DEPARTMENTS ||--o{ APPOINTMENTS : categorizes
+    USERS ||--o{ APPOINTMENTS : books
+    APPOINTMENTS ||--o| CONSULTATIONS : records
+    DOCTORS ||--o{ CONSULTATIONS : writes
+    PATIENTS ||--o{ CONSULTATIONS : receives
+    APPOINTMENTS ||--o| PAYMENTS : billed
+    PATIENTS ||--o{ PAYMENTS : pays
+    USERS ||--o{ PAYMENTS : receives
+```
+
+`users` also has Spatie role/permission pivot tables. Appointments and patients are soft-deletable. Payments are one record per appointment, with partial receipts accumulated in `amount_paid`.
+
+## Verification
+
+```sh
+php artisan migrate:fresh --seed --no-interaction
+php artisan test --compact
+npm run build
+php artisan route:list --except-vendor
+php artisan optimize:clear
+vendor/bin/pint --dirty --format agent
+```
+
+The feature suite covers role dashboards, authentication and registration policy, appointment booking and slot availability, payment balances, patient data isolation, and report exports.
