@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class PatientSeeder extends Seeder
@@ -12,6 +11,7 @@ class PatientSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        // Design and implement the logic to seed the patients table with sample data.
+
     }
 }
