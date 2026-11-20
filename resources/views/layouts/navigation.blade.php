@@ -20,6 +20,7 @@
                     @canany(['doctors.view', 'doctors.manage'])<x-nav-link :href="route('doctors.index')" :active="request()->routeIs('doctors.*')">Doctors</x-nav-link>@endcanany
                     @can('departments.manage')<x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')">Departments</x-nav-link>@endcan
                     @can('schedules.manage')<x-nav-link :href="route('doctor-schedules.index')" :active="request()->routeIs('doctor-schedules.*')">Schedules</x-nav-link>@endcan
+                    @role('doctor')<x-nav-link :href="route('doctor-schedule.own')" :active="request()->routeIs('doctor-schedule.own')">My schedule</x-nav-link>@endrole
                     @canany(['consultations.view', 'consultations.create'])<x-nav-link :href="route('consultations.index')" :active="request()->routeIs('consultations.*')">Consultations</x-nav-link>@endcanany
                     @canany(['payments.view', 'payments.create'])<x-nav-link :href="route('payments.index')" :active="request()->routeIs('payments.*')">Payments</x-nav-link>@endcanany
                     @canany(['reports.view', 'reports.daily.view', 'reports.payments.view'])<x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">Reports</x-nav-link>@endcanany
@@ -84,6 +85,7 @@
             @canany(['doctors.view', 'doctors.manage'])<x-responsive-nav-link :href="route('doctors.index')">Doctors</x-responsive-nav-link>@endcanany
             @can('departments.manage')<x-responsive-nav-link :href="route('departments.index')">Departments</x-responsive-nav-link>@endcan
             @can('schedules.manage')<x-responsive-nav-link :href="route('doctor-schedules.index')">Schedules</x-responsive-nav-link>@endcan
+            @role('doctor')<x-responsive-nav-link :href="route('doctor-schedule.own')">My schedule</x-responsive-nav-link>@endrole
             @canany(['consultations.view', 'consultations.create'])<x-responsive-nav-link :href="route('consultations.index')">Consultations</x-responsive-nav-link>@endcanany
             @canany(['payments.view', 'payments.create'])<x-responsive-nav-link :href="route('payments.index')">Payments</x-responsive-nav-link>@endcanany
             @canany(['reports.view', 'reports.daily.view', 'reports.payments.view'])<x-responsive-nav-link :href="route('reports.index')">Reports</x-responsive-nav-link>@endcanany

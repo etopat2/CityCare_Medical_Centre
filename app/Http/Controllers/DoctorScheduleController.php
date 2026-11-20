@@ -12,6 +12,22 @@ use Illuminate\Http\Request;
 
 class DoctorScheduleController extends Controller
 {
+    public function own(Request $request): View
+    {
+        $doctor = $request->user()->doctor;
+
+        abort_unless($doctor, 404);
+        $doctor->load(['user', 'department']);
+
+        $schedules = $doctor->schedules()
+            ->where('is_active', true)
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
+
+        return view('doctor-schedules.own', compact('doctor', 'schedules'));
+    }
+
     public function index(Request $request): View
     {
         $schedules = DoctorSchedule::query()

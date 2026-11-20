@@ -6,7 +6,7 @@ CityCare is a responsive Laravel application for managing clinic departments, do
 
 - **Admin:** all clinic records, users created through doctor and patient workflows, clinic reports and exports.
 - **Receptionist:** patient records, doctor directory, appointment booking and daily appointment reports.
-- **Doctor:** own appointments, treated patient history, consultations, workload and attendance reports for their own appointments.
+- **Doctor:** own weekly schedule and appointments, treated patient history, consultations, workload and attendance reports for their own appointments.
 - **Cashier:** appointment billing, partial payments, balance tracking, receipts and payment reports.
 - **Patient:** own profile, appointment list, visit history and payment status.
 

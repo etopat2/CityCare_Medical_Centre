@@ -117,6 +117,23 @@ class ClinicWorkflowTest extends TestCase
             ->assertDontSee('Other private diagnosis');
     }
 
+    public function test_doctor_can_view_only_their_own_weekly_schedule(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+        $doctorUser = User::factory()->create(['name' => 'Dr Schedule Owner']);
+        $doctorUser->assignRole('doctor');
+        $ownDoctor = Doctor::factory()->create(['user_id' => $doctorUser->id]);
+        $otherDoctor = Doctor::factory()->create(['user_id' => User::factory()->create(['name' => 'Dr Other Schedule'])->id]);
+        DoctorSchedule::factory()->create(['doctor_id' => $ownDoctor->id, 'day_of_week' => 1, 'start_time' => '09:00:00', 'end_time' => '13:00:00']);
+        DoctorSchedule::factory()->create(['doctor_id' => $otherDoctor->id, 'day_of_week' => 2, 'start_time' => '10:00:00', 'end_time' => '14:00:00']);
+
+        $this->actingAs($doctorUser)->get(route('doctor-schedule.own'))
+            ->assertOk()
+            ->assertSee('Dr Schedule Owner')
+            ->assertSee('Monday')
+            ->assertDontSee('Dr Other Schedule');
+    }
+
     /** @return array{0: Doctor, 1: Carbon} */
     private function doctorWithFutureSchedule(): array
     {

@@ -22,6 +22,7 @@ Route::middleware(['auth', 'active'])->group(function (): void {
     Route::get('/admin/dashboard', [DashboardController::class, 'show'])->middleware('role:admin')->name('dashboard.admin');
     Route::get('/receptionist/dashboard', [DashboardController::class, 'show'])->middleware('role:receptionist')->name('dashboard.receptionist');
     Route::get('/doctor/dashboard', [DashboardController::class, 'show'])->middleware('role:doctor')->name('dashboard.doctor');
+    Route::get('/doctor/schedule', [DoctorScheduleController::class, 'own'])->middleware('role:doctor')->name('doctor-schedule.own');
     Route::get('/cashier/dashboard', [DashboardController::class, 'show'])->middleware('role:cashier')->name('dashboard.cashier');
     Route::get('/patient/dashboard', [DashboardController::class, 'show'])->middleware('role:patient')->name('dashboard.patient');
 
