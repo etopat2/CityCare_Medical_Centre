@@ -1,0 +1,1 @@
+<x-app-layout><x-slot name="header"><h2 class="text-2xl font-semibold text-slate-900">Update consultation</h2></x-slot><div class="mx-auto max-w-3xl py-8">@include('consultations._form',compact('consultation'))</div></x-app-layout>

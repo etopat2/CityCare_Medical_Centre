@@ -1,0 +1,1 @@
+<x-app-layout><x-slot name="header"><h2 class="text-2xl font-semibold text-slate-900">Edit {{ $doctor->user->name }}</h2></x-slot><div class="mx-auto max-w-4xl py-8">@include('doctors._form',compact('doctor'))</div></x-app-layout>

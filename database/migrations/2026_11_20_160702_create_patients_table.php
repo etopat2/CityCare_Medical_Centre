@@ -28,6 +28,7 @@ return new class extends Migration
             $table->string('blood_group', 5)->nullable();
             $table->text('allergies')->nullable();
             $table->timestamps();
+            $table->softDeletes();
             $table->unique(['phone', 'date_of_birth']);
             $table->index(['last_name', 'first_name']);
         });

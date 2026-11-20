@@ -1,0 +1,1 @@
+<x-app-layout><x-slot name="header"><h2 class="text-2xl font-semibold text-slate-900">Add doctor availability</h2></x-slot><div class="mx-auto max-w-2xl py-8">@include('doctor-schedules._form')</div></x-app-layout>

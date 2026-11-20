@@ -12,8 +12,8 @@ class RolesAndPermissionsSeeder extends Seeder
     /** @var array<string, array<int, string>> */
     private array $permissionsByRole = [
         'admin' => ['*'],
-        'receptionist' => ['patients.view', 'patients.create', 'patients.update', 'appointments.view', 'appointments.create', 'appointments.update', 'appointments.cancel', 'doctors.view', 'schedules.view', 'reports.daily.view'],
-        'doctor' => ['appointments.view', 'consultations.create', 'consultations.view', 'schedules.own.view', 'patients.treated.view'],
+        'receptionist' => ['patients.view', 'patients.create', 'patients.update', 'appointments.view', 'appointments.create', 'appointments.update', 'appointments.cancel', 'doctors.view', 'schedules.view', 'reports.daily.view', 'reports.export'],
+        'doctor' => ['appointments.view', 'consultations.create', 'consultations.view', 'schedules.own.view', 'patients.treated.view', 'reports.view', 'reports.export'],
         'cashier' => ['appointments.view', 'payments.view', 'payments.create', 'payments.update', 'reports.payments.view', 'reports.export'],
         'patient' => ['portal.profile.view', 'portal.appointments.view', 'portal.visits.view', 'portal.payments.view'],
     ];

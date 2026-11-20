@@ -45,7 +45,7 @@ class PatientPolicy
      */
     public function update(User $user, Patient $patient): bool
     {
-        return $user->can('patients.update') || ($user->hasRole('patient') && $patient->user_id === $user->id);
+        return $user->can('patients.update');
     }
 
     /**
@@ -53,7 +53,7 @@ class PatientPolicy
      */
     public function delete(User $user, Patient $patient): bool
     {
-        return $user->hasRole('admin') && $user->can('patients.delete') && $patient->appointments()->doesntExist();
+        return $user->hasRole('admin') && $user->can('patients.delete');
     }
 
     /**
