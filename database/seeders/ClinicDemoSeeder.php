@@ -17,10 +17,10 @@ class ClinicDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $receptionist = $this->account('Front Desk Reception', 'reception@citycare.test', '0772000002', 'receptionist');
-        $cashier = $this->account('Clinic Cashier', 'cashier@citycare.test', '0772000004', 'cashier');
-        $patientPortal = $this->account('Patient Portal', 'patient@citycare.test', '0772000005', 'patient');
-        $this->account('Clinic Administrator', 'admin@citycare.test', '0772000001', 'admin');
+        $receptionist = $this->account('Front Desk Reception', 'reception@citycare.com', '0772000002', 'receptionist');
+        $cashier = $this->account('Clinic Cashier', 'cashier@citycare.com', '0772000004', 'cashier');
+        $patientPortal = $this->account('Patient Portal', 'patient@citycare.com', '0772000005', 'patient');
+        $this->account('Clinic Administrator', 'admin@citycare.com', '0772000001', 'admin');
 
         $departmentNames = ['General Medicine', 'Pediatrics', 'Maternity', 'Dental Care', 'Laboratory'];
         $departments = collect($departmentNames)->map(fn (string $name): Department => Department::create([
@@ -35,7 +35,7 @@ class ClinicDemoSeeder extends Seeder
         $doctors = collect(range(0, 7))->map(function (int $index) use ($departments): Doctor {
             $user = $this->account(
                 $index === 0 ? 'Dr. Sarah Nambi' : 'Doctor '.($index + 1),
-                $index === 0 ? 'doctor@citycare.test' : 'doctor'.($index + 1).'@citycare.test',
+                $index === 0 ? 'doctor@citycare.com' : 'doctor'.($index + 1).'@citycare.test',
                 '077210'.str_pad((string) ($index + 1), 5, '0', STR_PAD_LEFT),
                 'doctor',
             );
