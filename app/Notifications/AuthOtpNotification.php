@@ -29,11 +29,11 @@ class AuthOtpNotification extends Notification
     {
         return (new MailMessage)
             ->subject($this->purpose === 'login' ? 'Your CityCare sign-in code' : 'Your CityCare password reset code')
-            ->greeting('Hello,')
+            ->greeting('Hello ' . $notifiable->name . ',')
             ->line($this->purpose === 'login'
                 ? 'Use this one-time code to finish signing in to your CityCare account.'
                 : 'Use this one-time code to reset your CityCare account password.')
-            ->line($this->code)
+            ->line('OTP Code: ' . $this->code)
             ->line('This code expires in 10 minutes and can only be used once. If you did not request it, you can ignore this email.');
     }
 

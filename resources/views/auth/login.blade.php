@@ -9,7 +9,7 @@
         @csrf
         <div>
             <x-input-label for="email" value="Email address" class="font-medium text-slate-700" />
-            <div class="relative mt-1.5"><i class="fa fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><x-text-input id="email" class="block w-full rounded-xl border-slate-300 py-3 ps-10 shadow-sm focus:border-teal-700 focus:ring-teal-700" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="name@citycare.test" /></div>
+            <div class="relative mt-1.5"><i class="fa fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><x-text-input id="email" class="block w-full rounded-xl border-slate-300 py-3 ps-10 shadow-sm focus:border-teal-700 focus:ring-teal-700" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="you@example.com" /></div>
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
