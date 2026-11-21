@@ -38,8 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     results.append(button);
                 });
                 results.classList.toggle('hidden', data.patients.length === 0);
-                if (!data.patients.length) message.textContent = 'No patient records found.';
-            } catch (error) { message.textContent = error.message; }
+                if (!data.patients.length) window.CityCareToast('No matching patient records found.', 'info');
+            } catch (error) { window.CityCareToast(error.message, 'error'); }
         }, 250);
     });
 });

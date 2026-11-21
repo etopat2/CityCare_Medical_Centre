@@ -1,3 +1,53 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.x-cloak {
+    display: none !important;
+}
+
+.toastify.citycare-toast {
+    border-radius: 0.875rem;
+    box-shadow: 0 16px 40px rgb(15 23 42 / 18%);
+    font-family: inherit;
+    font-size: 0.875rem;
+    max-width: min(26rem, calc(100vw - 2rem));
+    padding: 0.95rem 1.1rem;
+}
+
+.toastify.citycare-toast::before {
+    font-family: FontAwesome, sans-serif;
+    margin-right: 0.65rem;
+}
+
+.toastify.citycare-toast-success {
+    background: #047857;
+}
+
+.toastify.citycare-toast-success::before {
+    content: '\f00c';
+}
+
+.toastify.citycare-toast-error {
+    background: #b91c1c;
+}
+
+.toastify.citycare-toast-error::before {
+    content: '\f071';
+}
+
+.toastify.citycare-toast-info {
+    background: #0f766e;
+}
+
+.toastify.citycare-toast-info::before {
+    content: '\f05a';
+}
+
+.toastify.citycare-toast-warning {
+    background: #b45309;
+}
+
+.toastify.citycare-toast-warning::before {
+    content: '\f071';
+}

@@ -7,7 +7,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProfileController extends Controller
 {
@@ -22,19 +25,60 @@ class ProfileController extends Controller
     }
 
     /**
+     * Stream the signed-in user's private profile photo.
+     */
+    public function photo(Request $request): BinaryFileResponse
+    {
+        $user = $request->user();
+        abort_unless($user->avatar_path !== null && Storage::disk('local')->exists($user->avatar_path), 404);
+
+        $disk = Storage::disk('local');
+
+        return response()->file($disk->path($user->avatar_path), [
+            'Content-Type' => $disk->mimeType($user->avatar_path) ?? 'application/octet-stream',
+            'Cache-Control' => 'private, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /**
      * Update the user's profile information.
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $validated = $request->validated();
+        $avatar = $request->file('avatar');
+        unset($validated['avatar']);
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $previousAvatarPath = $user->avatar_path;
+        $newAvatarPath = null;
+
+        if ($avatar !== null) {
+            $newAvatarPath = $avatar->store('profile-photos/'.$user->id, 'local');
+
+            if (! is_string($newAvatarPath)) {
+                throw ValidationException::withMessages([
+                    'avatar' => 'The profile photo could not be saved. Please try again.',
+                ]);
+            }
+
+            $user->avatar_path = $newAvatarPath;
         }
 
-        $request->user()->save();
+        $user->fill($validated);
 
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        if ($newAvatarPath !== null && $previousAvatarPath !== null) {
+            Storage::disk('local')->delete($previousAvatarPath);
+        }
+
+        return Redirect::route('profile.edit')->with('success', 'Profile information updated.');
     }
 
     /**
@@ -47,6 +91,10 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        if ($user->avatar_path !== null) {
+            Storage::disk('local')->delete($user->avatar_path);
+        }
 
         Auth::logout();
 

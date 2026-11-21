@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">CityCare Medical Centre mark</title>
+  <rect width="64" height="64" rx="18" fill="#0f766e"/>
+  <path d="M28 11h8v17h17v8H36v17h-8V36H11v-8h17z" fill="#fff"/>
+  <path d="M8 44h13l5-8 7 13 6-9 4 4h3" fill="none" stroke="#a7f3d0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/>
+</svg>

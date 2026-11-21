@@ -30,6 +30,57 @@ class DashboardController extends Controller
         $user = $request->user();
         $role = $user->getRoleNames()->first() ?? 'user';
         $today = Carbon::today();
+        $doctorId = $user->doctor?->id ?? 0;
+        $patientId = $user->patient?->id ?? 0;
+
+        $dashboardAppointments = Appointment::query();
+        if ($role === 'doctor') {
+            $dashboardAppointments->where('doctor_id', $doctorId);
+        } elseif ($role === 'patient') {
+            $dashboardAppointments->where('patient_id', $patientId);
+        }
+
+        $weeklyStart = $today->copy()->subDays(6)->toDateString();
+        $weeklyAppointments = (clone $dashboardAppointments)
+            ->whereBetween('appointment_date', [$weeklyStart, $today->toDateString()])
+            ->selectRaw('appointment_date, COUNT(*) as total')
+            ->groupBy('appointment_date')
+            ->pluck('total', 'appointment_date');
+
+        $weeklyDates = collect(range(6, 0))->map(fn (int $daysAgo): Carbon => $today->copy()->subDays($daysAgo));
+        $monthlyStatuses = (clone $dashboardAppointments)
+            ->whereBetween('appointment_date', [$today->copy()->startOfMonth()->toDateString(), $today->copy()->endOfMonth()->toDateString()])
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $charts = [
+            'appointmentTrend' => [
+                'labels' => $weeklyDates->map(fn (Carbon $date): string => $date->format('D j'))->all(),
+                'values' => $weeklyDates->map(fn (Carbon $date): int => (int) ($weeklyAppointments[$date->toDateString()] ?? 0))->all(),
+            ],
+            'appointmentStatuses' => [
+                'labels' => collect(Appointment::STATUSES)->map(fn (string $status): string => ucfirst(str_replace('_', ' ', $status)))->all(),
+                'values' => collect(Appointment::STATUSES)->map(fn (string $status): int => (int) ($monthlyStatuses[$status] ?? 0))->all(),
+            ],
+        ];
+
+        $canViewFinancialCharts = in_array($role, ['admin', 'cashier'], true);
+        if ($canViewFinancialCharts) {
+            $sixMonthsStart = $today->copy()->startOfMonth()->subMonths(5);
+            $paymentsByMonth = Payment::query()
+                ->whereNotNull('paid_at')
+                ->whereBetween('paid_at', [$sixMonthsStart, $today->copy()->endOfMonth()])
+                ->get(['paid_at', 'amount_paid'])
+                ->groupBy(fn (Payment $payment): string => $payment->paid_at->format('Y-m'));
+            $months = collect(range(5, 0))->map(fn (int $monthsAgo): Carbon => $today->copy()->startOfMonth()->subMonths($monthsAgo));
+
+            $charts['monthlyCollections'] = [
+                'labels' => $months->map(fn (Carbon $month): string => $month->format('M Y'))->all(),
+                'values' => $months->map(fn (Carbon $month): float => (float) ($paymentsByMonth[$month->format('Y-m')] ?? collect())->sum('amount_paid'))->all(),
+            ];
+        }
+
         $appointmentsQuery = Appointment::query()
             ->whereDate('appointment_date', $today)
             ->with(['patient', 'doctor.user', 'department'])
@@ -42,8 +93,6 @@ class DashboardController extends Controller
         }
 
         $appointments = $appointmentsQuery->limit(8)->get();
-        $doctorId = $user->doctor?->id ?? 0;
-        $patientId = $user->patient?->id ?? 0;
         $outstanding = Payment::whereIn('status', ['pending', 'partial'])->sum(DB::raw('amount - amount_paid'));
 
         $stats = match ($role) {
@@ -79,6 +128,6 @@ class DashboardController extends Controller
         $visits = $patient?->consultations()->with(['doctor.user', 'appointment'])->latest()->limit(5)->get() ?? collect();
         $payments = $patient?->payments()->with('appointment')->latest()->limit(5)->get() ?? collect();
 
-        return view('dashboard', compact('role', 'stats', 'appointments', 'patient', 'visits', 'payments'));
+        return view('dashboard', compact('role', 'stats', 'appointments', 'patient', 'visits', 'payments', 'charts', 'canViewFinancialCharts'));
     }
 }

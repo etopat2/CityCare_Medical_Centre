@@ -16,15 +16,27 @@ Public registration is disabled. Staff create patient records and may create a p
 
 - Laravel 13, PHP 8.5 (PHP 8.3+ is required by the installed Laravel Excel 4 package)
 - Laravel Breeze with Blade, Tailwind CSS, Alpine.js and Vite
-- MySQL or SQLite, with portable Laravel migrations
+- MySQL by default, with SQLite available as a local fallback and portable Laravel migrations
 - Spatie Laravel Permission for roles and permissions
 - Laravel Excel for XLSX and CSV exports
 - DomPDF for PDF reports and payment receipts
+- Chart.js for role-scoped dashboard charts
+- Toastify.js for status, warning and error notifications; Font Awesome 4.7 for interface icons
 - PHPUnit feature tests
+
+## Interface and framework components
+
+- **Breeze authentication:** login and account views live in `resources/views/auth`; the guest and signed-in shells are Blade components in `resources/views/layouts` and `resources/views/components`; auth routes are loaded from `routes/auth.php`.
+- **Spatie roles and permissions:** `app/Models/User.php` uses `HasRoles`, `bootstrap/app.php` registers the `role` and `permission` middleware aliases, and route/view access checks use those roles and permissions.
+- **Laravel API resources:** `app/Http/Resources` formats the patient search, doctor option and available-slot JSON responses used by the booking forms.
+- **Toast notifications:** `resources/js/app.js` exposes `CityCareToast`; application shells send session feedback and validation summaries through Toastify.
+- **Brand assets:** `public/images/citycare-mark.svg` is used throughout the application, and `public/favicon.svg` supplies the browser icon.
+- **Profile photos:** JPEG, PNG and WebP images are limited to 2 MB and 96–2000 pixels per dimension; upload files use generated filenames on the private local disk and are streamed only to the signed-in account.
+- **Dashboard charts:** appointment activity and status are scoped to the signed-in doctor or patient; payment collection charts are shown only for administrators and cashiers.
 
 ## Requirements
 
-Install PHP with the extensions required by Laravel and Composer dependencies, Composer, Node.js and npm. MySQL is optional; SQLite is configured by default. For a fresh SQLite database, ensure `database/database.sqlite` exists and is writable.
+Install PHP with the extensions required by Laravel and Composer dependencies, Composer, Node.js and npm. MySQL is the default connection. For a local SQLite fallback, set `DB_CONNECTION=sqlite` and set `DB_DATABASE` to the absolute path of a writable SQLite file.
 
 ## Local setup
 
@@ -38,7 +50,7 @@ npm run build
 php artisan serve
 ```
 
-On PowerShell, `Copy-Item .env.example .env` can be used instead of `copy`. The default `.env.example` uses SQLite, `Africa/Kampala`, UGX and the database session/cache/queue drivers. To use MySQL, set `DB_CONNECTION=mysql`, host, port, database, username and password in `.env` before migrating. The database must already exist.
+On PowerShell, `Copy-Item .env.example .env` can be used instead of `copy`. The default `.env.example` targets XAMPP MySQL at `127.0.0.1:3306`, database `CityCare_db`, user `root`, and a blank password. Set the username/password in `.env` if your MySQL installation differs. Create the database before migrating. The application timezone is `Africa/Kampala` and currency is UGX.
 
 The SQLite database is seeded with five clinic departments, eight doctors and their weekday schedules, 50 patient records, 150 appointments, consultations for completed visits, and payment records. Seeded appointments span past and future dates.
 

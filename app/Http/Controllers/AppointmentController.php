@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
+use App\Http\Resources\AvailableSlotResource;
+use App\Http\Resources\DoctorOptionResource;
+use App\Http\Resources\PatientSearchResource;
 use App\Models\Appointment;
 use App\Models\Department;
 use App\Models\Doctor;
@@ -140,7 +143,7 @@ class AppointmentController extends Controller
             'date' => $data['date'],
             'available' => count($slots) > 0,
             'free_slots' => count($slots),
-            'slots' => $slots,
+            'slots' => array_map(fn (array $slot): array => (new AvailableSlotResource($slot))->resolve($request), $slots),
         ]);
     }
 
@@ -158,7 +161,7 @@ class AppointmentController extends Controller
             ->limit(10)
             ->get(['id', 'patient_number', 'first_name', 'last_name', 'phone']);
 
-        return response()->json(['patients' => $patients]);
+        return response()->json(['patients' => $patients->map(fn (Patient $patient): array => (new PatientSearchResource($patient))->resolve($request))->all()]);
     }
 
     public function doctorsByDepartment(Request $request, Department $department): JsonResponse
@@ -166,10 +169,6 @@ class AppointmentController extends Controller
         abort_unless($request->user()->can('doctors.view'), 403);
         $doctors = $department->doctors()->with('user')->where('is_active', true)->orderBy('id')->get(['id', 'user_id', 'department_id', 'specialization']);
 
-        return response()->json(['doctors' => $doctors->map(fn (Doctor $doctor): array => [
-            'id' => $doctor->id,
-            'name' => $doctor->user->name,
-            'specialization' => $doctor->specialization,
-        ])]);
+        return response()->json(['doctors' => $doctors->map(fn (Doctor $doctor): array => (new DoctorOptionResource($doctor))->resolve($request))->all()]);
     }
 }

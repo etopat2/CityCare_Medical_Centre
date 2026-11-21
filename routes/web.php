@@ -1,6 +1,11 @@
 <?php
 
+use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\SystemLogController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\Auth\RegisteredPatientController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -17,6 +22,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::middleware('guest')->group(function (): void {
+    Route::get('/register', [RegisteredPatientController::class, 'create'])->name('register');
+    Route::post('/register', [RegisteredPatientController::class, 'store'])->middleware('throttle:5,1')->name('register.store');
+});
+
 Route::middleware(['auth', 'active'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'redirect'])->name('dashboard');
     Route::get('/admin/dashboard', [DashboardController::class, 'show'])->middleware('role:admin')->name('dashboard.admin');
@@ -26,7 +36,34 @@ Route::middleware(['auth', 'active'])->group(function (): void {
     Route::get('/cashier/dashboard', [DashboardController::class, 'show'])->middleware('role:cashier')->name('dashboard.cashier');
     Route::get('/patient/dashboard', [DashboardController::class, 'show'])->middleware('role:patient')->name('dashboard.patient');
 
+    Route::middleware('permission:users.manage')->prefix('users')->name('users.')->group(function (): void {
+        Route::get('/', [UserManagementController::class, 'index'])->name('index');
+        Route::post('/', [UserManagementController::class, 'store'])->name('store');
+        Route::patch('/{user}', [UserManagementController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UserManagementController::class, 'destroy'])->name('destroy');
+        Route::post('/{userId}/restore', [UserManagementController::class, 'restore'])->whereNumber('userId')->name('restore');
+    });
+
+    Route::middleware('permission:access.manage')->prefix('access-control')->name('access.')->group(function (): void {
+        Route::get('/', [AccessControlController::class, 'index'])->name('index');
+        Route::post('/roles', [AccessControlController::class, 'store'])->name('roles.store');
+        Route::post('/permissions', [AccessControlController::class, 'storePermission'])->name('permissions.store');
+        Route::put('/roles/{role}', [AccessControlController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{role}', [AccessControlController::class, 'destroy'])->name('roles.destroy');
+    });
+
+    Route::middleware('permission:audit.view')->prefix('admin/audit-trail')->name('audit.')->group(function (): void {
+        Route::get('/', [AuditLogController::class, 'index'])->name('index');
+        Route::get('/export', [AuditLogController::class, 'export'])->middleware('permission:audit.export')->name('export');
+    });
+
+    Route::middleware('permission:system-logs.view')->prefix('admin/system-logs')->name('system-logs.')->group(function (): void {
+        Route::get('/', [SystemLogController::class, 'index'])->name('index');
+        Route::get('/export', [SystemLogController::class, 'export'])->middleware('permission:system-logs.export')->name('export');
+    });
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::get('/profile/photo', [ProfileController::class, 'photo'])->name('profile.photo');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 

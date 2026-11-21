@@ -30,7 +30,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'consultations.create', 'consultations.view', 'patients.treated.view',
             'payments.view', 'payments.create', 'payments.update',
             'reports.view', 'reports.export', 'reports.daily.view', 'reports.payments.view',
-            'users.manage', 'portal.profile.view', 'portal.appointments.view', 'portal.visits.view', 'portal.payments.view',
+            'users.manage', 'access.manage', 'audit.view', 'audit.export', 'system-logs.view', 'system-logs.export',
+            'portal.profile.view', 'portal.appointments.view', 'portal.visits.view', 'portal.payments.view',
         ];
 
         foreach ($permissions as $permission) {

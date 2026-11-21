@@ -1,1 +1,21 @@
-<x-app-layout><x-slot name="header"><h2 class="text-2xl font-semibold text-slate-900">Register patient</h2></x-slot><div class="space-y-5 py-8">@if($duplicates->isNotEmpty())<div role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"><p class="font-semibold">Possible duplicate records found</p><ul class="mt-2 list-inside list-disc">@foreach($duplicates as $match)<li>{{ $match->patient_number }} · {{ $match->first_name }} {{ $match->last_name }} · {{ $match->phone }}</li>@endforeach</ul></div>@endif @include('patients._form',['patient'=>null])</div></x-app-layout>
+<x-app-layout>
+    <x-slot name="header">
+        <div>
+            <p class="text-sm font-medium uppercase tracking-wider text-teal-700">Patient records</p>
+            <h2 class="mt-1 text-2xl font-semibold text-slate-900">Register patient</h2>
+        </div>
+    </x-slot>
+
+    <div class="space-y-5 py-8">
+        @if ($duplicates->isNotEmpty())
+            <script>
+                document.addEventListener('DOMContentLoaded', () => window.CityCareToast(
+                    @json('Possible duplicate records: '.$duplicates->map(fn ($patient) => $patient->patient_number.' / '.$patient->first_name.' '.$patient->last_name.' / '.$patient->phone)->implode('; ')),
+                    'warning',
+                ));
+            </script>
+        @endif
+
+        @include('patients._form', ['patient' => null])
+    </div>
+</x-app-layout>

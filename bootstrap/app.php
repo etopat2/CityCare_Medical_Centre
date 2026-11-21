@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuditTrailMiddleware;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(append: [AuditTrailMiddleware::class]);
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'role' => RoleMiddleware::class,

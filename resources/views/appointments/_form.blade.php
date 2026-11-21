@@ -12,6 +12,7 @@
     </div>
     <div class="flex gap-3"><button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white">{{ $appointment ? 'Save changes' : 'Book appointment' }}</button><a href="{{ route('appointments.index') }}" class="rounded-lg border px-4 py-2 text-sm">Cancel</a></div>
 </form>
+@php($desiredStartTime = old('start_time', $appointment?->start_time ? substr($appointment->start_time, 0, 5) : ''))
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.querySelector('form[data-slots-url]');
@@ -48,14 +49,15 @@ document.addEventListener('DOMContentLoaded', () => {
             timeSelect.replaceChildren(new Option(result.slots.length ? 'Choose a time' : 'No times available', ''));
             result.slots.forEach(slot => timeSelect.add(new Option(`${slot.start_time} – ${slot.end_time}`, slot.start_time)));
             timeSelect.disabled = result.slots.length === 0;
-            availability.textContent = result.available ? `Doctor available · ${result.free_slots} free slots` : 'Doctor is unavailable for the selected date.';
-            availability.className = `mt-1 text-xs ${result.available ? 'text-emerald-700' : 'text-rose-700'}`;
-            const desired = @json(old('start_time', $appointment?->start_time ? substr($appointment->start_time,0,5) : ''));
+            availability.textContent = result.available ? `${result.free_slots} free slots available.` : 'No slots available for this date.';
+            availability.className = `mt-1 text-xs ${result.available ? 'text-emerald-700' : 'text-slate-500'}`;
+            if (!result.available) window.CityCareToast('The doctor has no available slots on that date.', 'warning');
+            const desired = @js($desiredStartTime);
             if (desired && [...timeSelect.options].some(option => option.value === desired)) timeSelect.value = desired;
         } catch (error) {
             timeSelect.innerHTML = '<option value="">Unable to load times</option>';
-            availability.textContent = error.message;
-            availability.className = 'mt-1 text-xs text-rose-700';
+            availability.textContent = 'Availability could not be loaded.';
+            window.CityCareToast(error.message, 'error');
         }
     };
 
@@ -94,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message || 'Patient search failed.');
                 renderPatients(result.patients);
-            } catch (error) { patientSelection.textContent = error.message; }
+            } catch (error) { window.CityCareToast(error.message, 'error'); }
         }, 250);
     });
 
@@ -108,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     doctorSelect.addEventListener('change', loadSlots);
     dateInput.addEventListener('change', loadSlots);
-    form.addEventListener('submit', event => { if (!patientId.value) { event.preventDefault(); patientSelection.textContent = 'Select a patient from the search results.'; patientSelection.className = 'mt-1 text-xs text-rose-700'; } });
+    form.addEventListener('submit', event => { if (!patientId.value) { event.preventDefault(); window.CityCareToast('Select a saved patient from the search results.', 'warning'); } });
     if (currentPatient) patientSelection.textContent = 'Patient record selected.';
     if (doctorSelect.value && dateInput.value) loadSlots();
 });
