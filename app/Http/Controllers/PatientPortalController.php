@@ -49,7 +49,7 @@ class PatientPortalController extends Controller
     {
         $payments = Payment::query()
             ->where('patient_id', $request->user()->patient?->id ?? 0)
-            ->with(['appointment.doctor.user'])
+            ->with(['appointment.doctor.user', 'transactions' => fn ($query) => $query->latest()])
             ->latest()
             ->paginate(15)
             ->withQueryString();

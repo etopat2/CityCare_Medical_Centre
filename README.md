@@ -92,6 +92,25 @@ Create an Edge app in Wasmer and set its secrets and environment variables in th
 - `MAIL_USERNAME`, `MAIL_PASSWORD`, and `MAIL_FROM_ADDRESS`: the clinic's sending account and its app password, stored as secrets.
 - `MAIL_FROM_NAME`: `CityCare Medical Centre`.
 
+For online payments, configure these additional Wasmer environment variables before deploying:
+
+- `PESAPAL_CONSUMER_KEY` and `PESAPAL_CONSUMER_SECRET`: merchant API credentials. Store both as secrets; never commit them.
+- `PESAPAL_ENVIRONMENT`: `sandbox` while testing, then `live` after Pesapal activates the merchant account.
+- `PESAPAL_CURRENCY`: `UGX` (optional; defaults to `APP_CURRENCY`).
+- `PESAPAL_IPN_ID`: the notification ID returned by the registration step below.
+
+The patient portal creates an online checkout for the appointment's unpaid balance. Pesapal hosts the checkout and presents the payment options available to the merchant account, including mobile money and cards. CityCare records the payment only after it checks the transaction status with Pesapal; the browser redirect alone is not treated as proof of payment.
+
+After the app has a public HTTPS URL and the Pesapal credentials are set, register the notification URL. You can run this from the project root with the same credentials available in the local environment and `APP_URL` set to the deployed HTTPS URL:
+
+```powershell
+php artisan pesapal:register-ipn
+```
+
+Copy the returned IPN ID into the Wasmer app's `PESAPAL_IPN_ID` environment variable, then redeploy. Register separate notification IDs for sandbox and live environments. The IPN URL must be publicly reachable. Pesapal's API requires this registered URL for order submissions and sends status updates there if a patient closes the checkout before returning to CityCare.
+
+The consumer credentials supplied during setup should be rotated in the Pesapal merchant dashboard if they were shared in chat, email, or another public or collaborative channel. Use the replacement values only as Wasmer secrets and in a local ignored `.env` file for sandbox testing.
+
 Wasmer provisions the MySQL database from `app.yaml` and exposes `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, and `DB_PASSWORD`. Laravel's MySQL configuration accepts Wasmer's `DB_NAME` as a fallback for `DB_DATABASE`. Do not set local XAMPP credentials in Wasmer. Laravel compiles Blade views under `/tmp` and writes application logs to standard error so the Wasmer runtime can collect them; the admin system-log screen reads local Laravel log files and therefore may not show Wasmer's platform logs.
 
 ### 3. Connect the GitHub repository

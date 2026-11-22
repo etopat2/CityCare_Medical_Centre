@@ -14,6 +14,7 @@ use App\Http\Controllers\DoctorScheduleController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientPortalController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PesapalPaymentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/payments/pesapal/callback', [PesapalPaymentController::class, 'callback'])->name('payments.pesapal.callback');
+Route::get('/payments/pesapal/ipn', [PesapalPaymentController::class, 'ipn'])->name('payments.pesapal.ipn');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [RegisteredPatientController::class, 'create'])->name('register');
@@ -112,6 +116,7 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::get('/appointments', [PatientPortalController::class, 'appointments'])->name('appointments');
         Route::get('/visits', [PatientPortalController::class, 'visits'])->name('visits');
         Route::get('/payments', [PatientPortalController::class, 'payments'])->name('payments');
+        Route::post('/appointments/{appointment}/pay', [PesapalPaymentController::class, 'start'])->middleware('throttle:8,1')->name('appointments.pay');
     });
 
     Route::middleware('permission:reports.view|reports.daily.view|reports.payments.view')->prefix('reports')->name('reports.')->group(function (): void {

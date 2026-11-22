@@ -101,7 +101,7 @@ class PaymentController extends Controller
     public function show(Payment $payment): View
     {
         $this->authorize('view', $payment);
-        $payment->load(['patient', 'appointment.doctor.user', 'appointment.department', 'receiver']);
+        $payment->load(['patient', 'appointment.doctor.user', 'appointment.department', 'receiver', 'transactions' => fn ($query) => $query->latest()]);
 
         return view('payments.show', compact('payment'));
     }

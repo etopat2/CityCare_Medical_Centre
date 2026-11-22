@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'pesapal' => [
+        'consumer_key' => env('PESAPAL_CONSUMER_KEY'),
+        'consumer_secret' => env('PESAPAL_CONSUMER_SECRET'),
+        'environment' => env('PESAPAL_ENVIRONMENT', 'sandbox'),
+        'ipn_id' => env('PESAPAL_IPN_ID'),
+        'base_url' => env('PESAPAL_ENVIRONMENT', 'sandbox') === 'live'
+            ? 'https://pay.pesapal.com/v3'
+            : 'https://cybqa.pesapal.com/pesapalv3',
+        'currency' => env('PESAPAL_CURRENCY', env('APP_CURRENCY', 'UGX')),
+    ],
+
 ];

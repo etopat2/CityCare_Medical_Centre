@@ -16,8 +16,22 @@
             <div><p class="text-sm text-slate-500">Amount charged</p><p class="mt-1 font-semibold">UGX {{ number_format((float) $payment->amount) }}</p></div>
             <div><p class="text-sm text-slate-500">Amount received</p><p class="mt-1 font-semibold">UGX {{ number_format((float) $payment->amount_paid) }}</p></div>
             <div><p class="text-sm text-slate-500">Balance</p><p class="mt-1 font-semibold">UGX {{ number_format($payment->balance) }}</p></div>
-            <div><p class="text-sm text-slate-500">Method / status</p><p class="mt-1 font-semibold capitalize">{{ str_replace('_', ' ', $payment->payment_method) }} | {{ $payment->status }}</p></div>
-            <div class="sm:col-span-2"><p class="text-sm text-slate-500">Received by</p><p class="mt-1">{{ $payment->receiver->name }} | {{ $payment->paid_at?->format('j M Y, g:i A') }}</p></div>
+            <div><p class="text-sm text-slate-500">Method / status</p><p class="mt-1 font-semibold capitalize">{{ $payment->payment_method ? str_replace('_', ' ', $payment->payment_method) : 'Awaiting online payment' }} | {{ $payment->status }}</p></div>
+            <div class="sm:col-span-2"><p class="text-sm text-slate-500">Received by</p><p class="mt-1">{{ $payment->receiver?->name ?? ($payment->amount_paid > 0 ? 'Pesapal online' : 'Not received') }} | {{ $payment->paid_at?->format('j M Y, g:i A') }}</p></div>
         </section>
+
+        @if($payment->transactions->isNotEmpty())
+            <section class="mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 class="font-semibold text-slate-900">Pesapal transactions</h3>
+                <div class="mt-4 divide-y divide-slate-100">
+                    @foreach($payment->transactions as $transaction)
+                        <div class="flex flex-wrap justify-between gap-3 py-3 text-sm first:pt-0 last:pb-0">
+                            <div><p class="font-medium">{{ $transaction->merchant_reference }} · {{ ucfirst($transaction->status) }}</p><p class="mt-1 text-slate-500">{{ $transaction->status_description ?: 'No additional status details' }}</p>@if($transaction->confirmation_code)<p class="mt-1 text-slate-500">Confirmation: {{ $transaction->confirmation_code }}</p>@endif</div>
+                            <p class="font-semibold">{{ $transaction->currency }} {{ number_format((float) $transaction->amount, 2) }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        @endif
     </div>
 </x-app-layout>
