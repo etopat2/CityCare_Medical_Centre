@@ -54,6 +54,56 @@ On PowerShell, `Copy-Item .env.example .env` can be used instead of `copy`. The 
 
 The SQLite database is seeded with five clinic departments, eight doctors and their weekday schedules, 50 patient records, 150 appointments, consultations for completed visits, and payment records. Seeded appointments span past and future dates.
 
+## Deploy to Wasmer Edge
+
+The repository includes `wasmer.toml` for Wasmer's PHP 8.3 runtime and `app.yaml` for the managed MySQL database, production settings, single-concurrency PHP runtime, persistent private profile-photo storage, and a pre-deployment migration job. Replace `owner` in `app.yaml` with your Wasmer username or organization before connecting the repository. Wasmer currently offers its managed database and volumes in `fr-roub1`, so this configuration runs CityCare and stores its database and uploaded profile photos in France. Review your organization's data residency requirements before deploying real patient information.
+
+### 1. Prepare the GitHub branch
+
+Push the project to GitHub and choose the branch Wasmer should deploy, usually `main`. Wasmer detects PHP projects and installs Composer dependencies from `composer.json` and `composer.lock`. This Laravel app also needs Vite's compiled assets. Build those locally before pushing and include `public/build` in the commit; `.gitignore` is configured to allow those built assets:
+
+```powershell
+npm ci
+npm run build
+git add public/build
+git add .gitignore README.md app.yaml wasmer.toml config/database.php config/wasmer.php app/Console/Commands/PrepareWasmerDeployment.php database/seeders/WasmerAdminSeeder.php
+git commit -m "Prepare CityCare for Wasmer deployment"
+git push origin main
+```
+
+Run these commands from the project root, replacing `main` if your production branch has a different name. Rebuild and commit `public/build` whenever frontend source files change.
+
+### 2. Create the Wasmer app and configure secrets
+
+Create an Edge app in Wasmer and set its secrets and environment variables in the app dashboard before the first deployment:
+
+- `APP_KEY`: generate one locally with `php artisan key:generate --show`, then paste the value into the secret field. Do not commit it.
+- `WASMER_ADMIN_EMAIL`: email address for the first production administrator.
+- `WASMER_ADMIN_PASSWORD`: a unique password of at least 16 characters. Generate a strong value and store it only as a Wasmer secret.
+- `WASMER_ADMIN_NAME`: administrator's display name (optional; defaults to `CityCare Administrator`).
+- `APP_URL`: the HTTPS URL Wasmer assigns to the app.
+- `APP_ENV`: `production`.
+- `APP_DEBUG`: `false`.
+- `LOG_CHANNEL`: `stderr`.
+- `MAIL_MAILER`: `smtp` (the app uses email for login OTP and password reset codes).
+- `MAIL_HOST`: `smtp.gmail.com`.
+- `MAIL_PORT`: `587`.
+- `MAIL_SCHEME`: `tls`.
+- `MAIL_USERNAME`, `MAIL_PASSWORD`, and `MAIL_FROM_ADDRESS`: the clinic's sending account and its app password, stored as secrets.
+- `MAIL_FROM_NAME`: `CityCare Medical Centre`.
+
+Wasmer provisions the MySQL database from `app.yaml` and exposes `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, and `DB_PASSWORD`. Laravel's MySQL configuration accepts Wasmer's `DB_NAME` as a fallback for `DB_DATABASE`. Do not set local XAMPP credentials in Wasmer. Laravel compiles Blade views under `/tmp` and writes application logs to standard error so the Wasmer runtime can collect them; the admin system-log screen reads local Laravel log files and therefore may not show Wasmer's platform logs.
+
+### 3. Connect the GitHub repository
+
+In the Wasmer app, open **Settings → Git**, choose **GitHub**, authorize Wasmer for the repository (and organization if applicable), then select this repository and the production branch. Save the connection and start the first deployment. Keep `.env` out of Git; Wasmer app secrets supply production values. Wasmer Git deployments use the selected production branch, and future pushes to it deploy updates.
+
+The pre-deployment job runs `php artisan wasmer:prepare` against the managed database. That command migrates the schema, creates the standard roles and permissions on a fresh database, and creates the first administrator using the Wasmer secrets. It is safe to run on later deployments: it does not reset an existing administrator's password or role customizations. Do not run the general `db:seed` command in production; the clinic demo seeder creates sample users and clinical records. After the first deployment, check the assigned HTTPS URL, verify login and OTP email delivery, test a profile-photo upload, and review the app's logs and database in the Wasmer dashboard.
+
+For later releases, build the Vite assets, commit the resulting `public/build` files with the source change, and push to the connected branch. Wasmer then deploys from GitHub. Wasmer's Git integration connects the repository and branch to the app; the PHP detector installs Composer dependencies, while committing `public/build` makes this app's Vite output available to Laravel.
+
+Wasmer references: [GitHub deployments](https://docs.wasmer.io/edge/git/wasmer-for-github/), [Git deployment overview](https://docs.wasmer.io/edge/git/), [Laravel on Wasmer](https://docs.wasmer.io/edge/guides/laravel/), [supported frameworks and automatic dependency detection](https://docs.wasmer.io/edge/learn/supported-frameworks-and-languages/), [app configuration and managed databases](https://docs.wasmer.io/edge/configuration/), and [regions](https://docs.wasmer.io/edge/learn/regions/).
+
 ### Demo accounts
 
 | Role | Email |
