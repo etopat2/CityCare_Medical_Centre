@@ -174,6 +174,34 @@ class PesapalPaymentController extends Controller
         }
     }
 
+    public function refresh(Request $request, PaymentTransaction $paymentTransaction, PesapalService $pesapal): RedirectResponse
+    {
+        $patient = $request->user()->patient;
+        abort_unless($patient && $paymentTransaction->payment()->where('patient_id', $patient->id)->exists(), 404);
+        abort_unless($paymentTransaction->provider === 'pesapal' && filled($paymentTransaction->tracking_id), 404);
+
+        try {
+            $transaction = $this->refreshTransaction(
+                $paymentTransaction->tracking_id,
+                $paymentTransaction->merchant_reference,
+                $pesapal,
+            );
+
+            $message = match ($transaction->status) {
+                'completed' => 'Payment received successfully.',
+                'failed', 'reversed' => 'Pesapal did not complete the payment. You can try again.',
+                'review' => 'This payment needs clinic review. Please contact the clinic.',
+                default => 'Payment is still being processed. Check again shortly.',
+            };
+
+            return redirect()->route('portal.payments')->with('status', $message);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->route('portal.payments')->with('status', 'We could not refresh the Pesapal status. Please try again shortly.');
+        }
+    }
+
     public function ipn(Request $request, PesapalService $pesapal): JsonResponse
     {
         $trackingId = $request->string('OrderTrackingId')->toString();

@@ -24,7 +24,13 @@
                         <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Pesapal attempts</h4>
                         <ul class="mt-2 space-y-2 text-sm">
                             @foreach($payment->transactions as $transaction)
-                                <li class="flex flex-wrap justify-between gap-2"><span>{{ $transaction->merchant_reference }} · {{ $transaction->status_description ?: ucfirst($transaction->status) }}</span><span class="font-medium">UGX {{ number_format((float) $transaction->amount) }}</span></li>
+                                <li class="flex flex-wrap items-center justify-between gap-2">
+                                    <span>{{ $transaction->merchant_reference }} · {{ $transaction->status_description ?: ucfirst($transaction->status) }}</span>
+                                    <span class="font-medium">UGX {{ number_format((float) $transaction->amount) }}</span>
+                                    @if($transaction->status === 'pending' && filled($transaction->tracking_id))
+                                        <form method="POST" action="{{ route('portal.payments.refresh', $transaction) }}">@csrf<button class="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700">Check status</button></form>
+                                    @endif
+                                </li>
                             @endforeach
                         </ul>
                     </div>
