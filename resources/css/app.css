@@ -6,6 +6,14 @@
     display: none !important;
 }
 
+#payment-method-modal:not([open]) {
+    display: none !important;
+}
+
+#payment-method-modal[open] {
+    display: flex;
+}
+
 .toastify.citycare-toast {
     border-radius: 0.875rem;
     box-shadow: 0 16px 40px rgb(15 23 42 / 18%);

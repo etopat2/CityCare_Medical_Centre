@@ -26,9 +26,14 @@ class PesapalPaymentController extends Controller
         $appointment->loadMissing(['doctor.user', 'payment']);
         $fee = (float) $appointment->doctor->consultation_fee;
         abort_if($fee <= 0, 422, 'This appointment does not have a payable fee.');
+        $availableBalance = $appointment->payment?->balance ?? $fee;
+        $validated = $request->validate([
+            'amount' => ['required', 'integer', 'min:1', 'max:'.(int) floor($availableBalance)],
+        ]);
+        $requestedAmount = (float) $validated['amount'];
 
         try {
-            $transaction = DB::transaction(function () use ($appointment, $fee): PaymentTransaction {
+            $transaction = DB::transaction(function () use ($appointment, $fee, $requestedAmount): PaymentTransaction {
                 $lockedAppointment = Appointment::query()->whereKey($appointment->id)->lockForUpdate()->firstOrFail();
                 $payment = Payment::query()->where('appointment_id', $lockedAppointment->id)->lockForUpdate()->first();
 
@@ -47,6 +52,7 @@ class PesapalPaymentController extends Controller
 
                 $balance = round((float) $payment->amount - (float) $payment->amount_paid, 2);
                 abort_if($balance <= 0, 422, 'This appointment has no remaining balance.');
+                abort_if($requestedAmount > $balance, 422, 'The amount entered is higher than the remaining balance.');
 
                 abort_if(
                     $payment->transactions()->where('status', 'review')->exists(),
@@ -56,17 +62,39 @@ class PesapalPaymentController extends Controller
 
                 $pending = $payment->transactions()->where('status', 'pending')->latest('id')->first();
                 if ($pending) {
+                    if (abs((float) $pending->amount - $requestedAmount) < 0.01) {
+                        return $pending;
+                    }
+
+                    // A payment amount can be changed safely only before an order is
+                    // submitted to Pesapal. Once a checkout URL exists, its amount is fixed.
+                    if (blank($pending->tracking_id) && blank($pending->redirect_url)) {
+                        $pending->update([
+                            'amount' => $requestedAmount,
+                            'currency' => config('services.pesapal.currency', 'UGX'),
+                            'status_description' => null,
+                        ]);
+
+                        return $pending->refresh();
+                    }
+
                     return $pending;
                 }
 
                 return $payment->transactions()->create([
                     'provider' => 'pesapal',
                     'merchant_reference' => 'CC-'.Str::upper((string) Str::ulid()),
-                    'amount' => $balance,
+                    'amount' => $requestedAmount,
                     'currency' => config('services.pesapal.currency', 'UGX'),
                     'status' => 'pending',
                 ]);
             });
+
+            if (abs((float) $transaction->amount - $requestedAmount) > 0.01) {
+                return back()->withErrors([
+                    'amount' => 'A Pesapal checkout for UGX '.number_format((float) $transaction->amount).' is already in progress. Your entered amount was not charged. Finish or check the existing checkout from My payments before starting another amount.',
+                ])->withInput();
+            }
 
             if ($transaction->redirect_url && $transaction->tracking_id) {
                 try {
@@ -74,7 +102,7 @@ class PesapalPaymentController extends Controller
                 } catch (Throwable $exception) {
                     report($exception);
 
-                    return redirect()->away($transaction->redirect_url);
+                    return redirect()->route('portal.payments.checkout', $transaction);
                 }
 
                 if ($transaction->status === 'completed') {
@@ -82,14 +110,14 @@ class PesapalPaymentController extends Controller
                 }
 
                 if (! in_array($transaction->status, ['failed', 'reversed'], true)) {
-                    return redirect()->away($transaction->redirect_url);
+                    return redirect()->route('portal.payments.checkout', $transaction);
                 }
 
                 $payment = $transaction->payment()->firstOrFail();
                 $transaction = $payment->transactions()->create([
                     'provider' => 'pesapal',
                     'merchant_reference' => 'CC-'.Str::upper((string) Str::ulid()),
-                    'amount' => round($payment->balance, 2),
+                    'amount' => $requestedAmount,
                     'currency' => config('services.pesapal.currency', 'UGX'),
                     'status' => 'pending',
                 ]);
@@ -138,15 +166,34 @@ class PesapalPaymentController extends Controller
 
             $transaction->update(['tracking_id' => $trackingId, 'redirect_url' => $redirectUrl]);
 
-            return redirect()->away($redirectUrl);
+            return redirect()->route('portal.payments.checkout', $transaction);
         } catch (Throwable $exception) {
             report($exception);
             if (isset($transaction) && $transaction instanceof PaymentTransaction && ! $transaction->redirect_url) {
                 $transaction->update(['status' => 'failed', 'status_description' => 'Checkout could not be started.']);
             }
 
-            return back()->withErrors(['payment' => 'We could not start the Pesapal checkout. Please try again or contact the clinic.']);
+            return back()->withErrors(['payment' => 'We could not prepare the secure checkout. No payment was taken. Please try again, or contact the clinic if the problem continues.']);
         }
+    }
+
+    public function checkout(Request $request, PaymentTransaction $paymentTransaction): \Illuminate\Contracts\View\View|RedirectResponse
+    {
+        $patient = $request->user()->patient;
+        abort_unless($patient && $paymentTransaction->payment()->where('patient_id', $patient->id)->exists(), 404);
+        abort_unless($paymentTransaction->provider === 'pesapal' && filled($paymentTransaction->redirect_url), 404);
+
+        if ($paymentTransaction->status === 'completed') {
+            return redirect()->route('portal.payments')->with('success', 'This payment has already been received.');
+        }
+
+        if (in_array($paymentTransaction->status, ['failed', 'reversed', 'review'], true)) {
+            return redirect()->route('portal.payments')->with('status', 'This payment session is no longer available. Start a new payment or contact the clinic.');
+        }
+
+        $paymentTransaction->load('payment.appointment.doctor.user');
+
+        return view('portal.payments.checkout', ['transaction' => $paymentTransaction]);
     }
 
     public function callback(Request $request, PesapalService $pesapal): RedirectResponse

@@ -60,25 +60,25 @@
             </div>
         </aside>
 
-        <div class="min-h-screen lg:ps-72">
+        <div class="flex min-h-screen flex-col lg:ps-72">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
                 <div class="flex min-h-[4.5rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
                     <div class="flex min-w-0 items-center gap-3">
                         <button type="button" class="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 lg:hidden" @click="sidebarOpen = true" aria-label="Open navigation"><i class="fa fa-bars" aria-hidden="true"></i></button>
                         <div class="hidden sm:block"><p class="text-xs font-medium uppercase tracking-wider text-teal-700">CityCare Medical Centre</p><p class="mt-0.5 text-sm text-slate-500"><i class="fa fa-calendar-o me-1.5" aria-hidden="true"></i>{{ now()->format('l, j F Y') }}</p></div>
                     </div>
-                    <div x-data="{ profileMenuOpen: false }" @keydown.escape.window="profileMenuOpen = false" class="relative">
-                        <button type="button" @click="profileMenuOpen = !profileMenuOpen" :aria-expanded="profileMenuOpen.toString()" aria-haspopup="true" class="flex max-w-[15rem] items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-700 focus:ring-offset-2">
+                    <details data-profile-menu class="relative">
+                        <summary class="flex max-w-[15rem] cursor-pointer list-none items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-700 focus:ring-offset-2 [&::-webkit-details-marker]:hidden">
                             <img src="{{ auth()->user()->avatarUrl() }}" alt="" class="size-10 shrink-0 rounded-full bg-teal-100 object-cover ring-2 ring-white">
                             <span class="min-w-0"><span class="block truncate text-sm font-semibold text-slate-900">{{ auth()->user()->name }}</span><span class="block truncate text-xs capitalize text-slate-500">{{ auth()->user()->getRoleNames()->first() ?? 'User' }}</span></span>
                             <i class="fa fa-chevron-down ms-1 text-xs text-slate-500" aria-hidden="true"></i>
-                        </button>
-                        <div x-cloak x-show="profileMenuOpen" x-transition.origin.top.right @click.outside="profileMenuOpen = false" class="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+                        </summary>
+                        <div class="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
                             <div class="border-b border-slate-100 px-4 py-2.5"><p class="truncate text-sm font-semibold text-slate-900">{{ auth()->user()->name }}</p><p class="truncate text-xs text-slate-500">{{ auth()->user()->email }}</p></div>
                             <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-teal-50 hover:text-teal-900"><i class="fa fa-user-circle w-4 text-center" aria-hidden="true"></i>Profile</a>
                             <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-rose-700 hover:bg-rose-50"><i class="fa fa-sign-out w-4 text-center" aria-hidden="true"></i>Sign out</button></form>
                         </div>
-                    </div>
+                    </details>
                 </div>
             </header>
 
@@ -86,7 +86,7 @@
                 <div class="border-b border-slate-200 bg-white px-4 py-5 sm:px-6 lg:px-8">{{ $header }}</div>
             @endisset
 
-            <main class="px-4 sm:px-6 lg:px-8" id="main-content">
+            <main class="flex-1 px-4 sm:px-6 lg:px-8" id="main-content">
                 {{ $slot }}
             </main>
 
@@ -100,5 +100,15 @@
     @if(session('success'))<script>document.addEventListener('DOMContentLoaded', () => window.CityCareToast(@json(session('success')), 'success'));</script>@endif
     @if(session('error'))<script>document.addEventListener('DOMContentLoaded', () => window.CityCareToast(@json(session('error')), 'error'));</script>@endif
     @if($errors->any())<script>document.addEventListener('DOMContentLoaded', () => window.CityCareToast(@json($errors->first()), 'error'));</script>@endif
+    <script>
+        document.addEventListener('click', event => {
+            document.querySelectorAll('[data-profile-menu][open]').forEach(menu => {
+                if (!menu.contains(event.target)) menu.open = false;
+            });
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') document.querySelectorAll('[data-profile-menu][open]').forEach(menu => menu.open = false);
+        });
+    </script>
 </body>
 </html>

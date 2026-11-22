@@ -37,7 +37,7 @@ class PatientPortalController extends Controller
     {
         $visits = Consultation::query()
             ->where('patient_id', $request->user()->patient?->id ?? 0)
-            ->with(['appointment', 'doctor.user'])
+            ->with(['appointment.department', 'doctor.user'])
             ->latest()
             ->paginate(15)
             ->withQueryString();
