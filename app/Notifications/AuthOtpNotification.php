@@ -6,10 +6,16 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
+/**
+ * Delivers auth otp information through the configured notification channels.
+ */
 class AuthOtpNotification extends Notification
 {
     use Queueable;
 
+    /**
+     * Initializes auth otp behavior with its required dependencies and input state.
+     */
     public function __construct(public string $code, public string $purpose) {}
 
     /**

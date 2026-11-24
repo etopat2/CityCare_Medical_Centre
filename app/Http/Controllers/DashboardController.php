@@ -13,25 +13,40 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Builds role-specific dashboards and summary metrics for the signed-in user.
+ */
 class DashboardController extends Controller
 {
+    /**
+     * Selects the destination appropriate to the current user and request context.
+     */
     public function redirect(Request $request): RedirectResponse
     {
         $role = $request->user()->getRoleNames()->first();
 
+        if ($role === 'pharmacist') {
+            return redirect()->route('pharmacy.index');
+        }
+        if ($role === 'lab-technician') {
+            return redirect()->route('lab.index');
+        }
         abort_unless($role && in_array($role, ['admin', 'receptionist', 'doctor', 'cashier', 'patient'], true), 403);
 
         return redirect()->route('dashboard.'.$role);
     }
 
+    /**
+     * Loads the requested dashboard record and presents its associated details.
+     */
     public function show(Request $request): View
     {
         /** @var User $user */
         $user = $request->user();
         $role = $user->getRoleNames()->first() ?? 'user';
         $today = Carbon::today();
-        $doctorId = $user->doctor?->id ?? 0;
-        $patientId = $user->patient?->id ?? 0;
+        $doctorId = $role === 'doctor' ? ($user->doctor?->id ?? 0) : 0;
+        $patientId = $role === 'patient' ? ($user->patient?->id ?? 0) : 0;
 
         $dashboardAppointments = Appointment::query();
         if ($role === 'doctor') {
@@ -71,13 +86,14 @@ class DashboardController extends Controller
             $paymentsByMonth = Payment::query()
                 ->whereNotNull('paid_at')
                 ->whereBetween('paid_at', [$sixMonthsStart, $today->copy()->endOfMonth()])
-                ->get(['paid_at', 'amount_paid'])
-                ->groupBy(fn (Payment $payment): string => $payment->paid_at->format('Y-m'));
+                ->selectRaw('SUBSTRING(CAST(paid_at AS CHAR), 1, 7) as month, SUM(amount_paid) as total')
+                ->groupBy('month')
+                ->pluck('total', 'month');
             $months = collect(range(5, 0))->map(fn (int $monthsAgo): Carbon => $today->copy()->startOfMonth()->subMonths($monthsAgo));
 
             $charts['monthlyCollections'] = [
                 'labels' => $months->map(fn (Carbon $month): string => $month->format('M Y'))->all(),
-                'values' => $months->map(fn (Carbon $month): float => (float) ($paymentsByMonth[$month->format('Y-m')] ?? collect())->sum('amount_paid'))->all(),
+                'values' => $months->map(fn (Carbon $month): float => (float) ($paymentsByMonth[$month->format('Y-m')] ?? 0))->all(),
             ];
         }
 
@@ -93,13 +109,15 @@ class DashboardController extends Controller
         }
 
         $appointments = $appointmentsQuery->limit(8)->get();
-        $outstanding = Payment::whereIn('status', ['pending', 'partial'])->sum(DB::raw('amount - amount_paid'));
+        $outstanding = $canViewFinancialCharts
+            ? Payment::whereIn('status', ['pending', 'partial'])->sum(DB::raw('amount - amount_paid'))
+            : 0;
 
         $stats = match ($role) {
             'admin' => [
                 'Today’s appointments' => Appointment::whereDate('appointment_date', $today)->count(),
                 'Registered patients' => Patient::count(),
-                'Today’s revenue' => 'UGX '.number_format((float) Payment::whereDate('paid_at', $today)->sum('amount_paid')),
+                'Today’s revenue' => 'UGX '.number_format((float) Payment::whereBetween('paid_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])->sum('amount_paid')),
                 'Outstanding balances' => 'UGX '.number_format((float) $outstanding),
             ],
             'receptionist' => [
@@ -114,7 +132,7 @@ class DashboardController extends Controller
             ],
             'cashier' => [
                 'Unpaid balances' => 'UGX '.number_format((float) $outstanding),
-                'Payments received today' => 'UGX '.number_format((float) Payment::whereDate('paid_at', $today)->sum('amount_paid')),
+                'Payments received today' => 'UGX '.number_format((float) Payment::whereBetween('paid_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()])->sum('amount_paid')),
                 'Payments to reconcile' => Payment::whereIn('status', ['pending', 'partial'])->count(),
             ],
             default => [
@@ -126,7 +144,7 @@ class DashboardController extends Controller
 
         $patient = $role === 'patient' ? $user->patient : null;
         $visits = $patient?->consultations()->with(['doctor.user', 'appointment'])->latest()->limit(5)->get() ?? collect();
-        $payments = $patient?->payments()->with('appointment')->latest()->limit(5)->get() ?? collect();
+        $payments = $patient?->payments()->with(['appointment', 'medicationOrder.consultation.appointment'])->latest()->limit(5)->get() ?? collect();
 
         return view('dashboard', compact('role', 'stats', 'appointments', 'patient', 'visits', 'payments', 'charts', 'canViewFinancialCharts'));
     }

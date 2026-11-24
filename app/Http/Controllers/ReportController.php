@@ -17,6 +17,9 @@ use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Builds clinic operational and financial reports with permission-aware data and export options.
+ */
 class ReportController extends Controller
 {
     private const REPORTS = [
@@ -27,6 +30,9 @@ class ReportController extends Controller
         'attendance' => ['Attendance trends', 'reports.view'],
     ];
 
+    /**
+     * Builds the report listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         abort_unless($request->user()->hasRole('admin') || collect(self::REPORTS)->contains(fn (array $report): bool => $request->user()->can($report[1])), 403);
@@ -36,6 +42,9 @@ class ReportController extends Controller
         return view('reports.index', compact('reports'));
     }
 
+    /**
+     * Loads the requested report record and presents its associated details.
+     */
     public function show(Request $request, string $report): View|Response
     {
         [$title, $permission] = $this->reportDefinition($request, $report);

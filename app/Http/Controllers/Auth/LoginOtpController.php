@@ -15,8 +15,14 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Issues and verifies one-time codes as part of the login flow.
+ */
 class LoginOtpController extends Controller
 {
+    /**
+     * Returns the form or initial state needed to create a login otp record.
+     */
     public function create(Request $request): View|RedirectResponse
     {
         $user = User::query()->find($request->session()->get('auth_otp_user_id'));
@@ -30,6 +36,9 @@ class LoginOtpController extends Controller
         return view('auth.login-otp', ['email' => $user->email]);
     }
 
+    /**
+     * Validates and persists a new login otp record, then returns the appropriate response.
+     */
     public function store(Request $request, AuthOtpService $otpService): RedirectResponse
     {
         $validated = $request->validate(['code' => ['required', 'digits:6']]);
@@ -54,10 +63,12 @@ class LoginOtpController extends Controller
         Auth::guard('web')->login($user, (bool) $request->session()->get('auth_otp_remember', false));
         $request->session()->forget(['auth_otp_user_id', 'auth_otp_remember']);
         $request->session()->regenerate();
+        $request->session()->forget('url.intended');
 
-        return redirect()->intended(route('dashboard', absolute: false))->with('status', 'You are signed in securely.');
+        return redirect()->route('dashboard')->with('status', 'You are signed in securely.');
     }
 
+    /** Issues and sends a replacement login code after validating the pending challenge and resend limit. */
     public function resend(Request $request, AuthOtpService $otpService): RedirectResponse
     {
         $user = User::query()->find($request->session()->get('auth_otp_user_id'));

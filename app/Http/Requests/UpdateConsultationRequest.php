@@ -4,6 +4,9 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Defines authorization and input validation rules for the update consultation request workflow.
+ */
 class UpdateConsultationRequest extends FormRequest
 {
     /**

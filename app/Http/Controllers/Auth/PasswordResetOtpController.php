@@ -16,8 +16,14 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Issues and verifies one-time codes used to authorize password resets.
+ */
 class PasswordResetOtpController extends Controller
 {
+    /**
+     * Returns the form or initial state needed to create a password reset otp record.
+     */
     public function create(Request $request): View|RedirectResponse
     {
         $email = $request->session()->get('password_otp_email');
@@ -29,6 +35,9 @@ class PasswordResetOtpController extends Controller
         return view('auth.reset-password', ['email' => $email]);
     }
 
+    /**
+     * Validates and persists a new password reset otp record, then returns the appropriate response.
+     */
     public function store(Request $request, AuthOtpService $otpService): RedirectResponse
     {
         $validated = $request->validate([
@@ -56,6 +65,7 @@ class PasswordResetOtpController extends Controller
         return redirect()->route('login')->with('status', 'Your password has been reset. You can now sign in.');
     }
 
+    /** Issues and sends a replacement password-reset code after validating the reset session and resend limit. */
     public function resend(Request $request, AuthOtpService $otpService): RedirectResponse
     {
         $email = $request->session()->get('password_otp_email');

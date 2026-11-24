@@ -1,11 +1,11 @@
 <x-app-layout>
-    <x-slot name="header"><h2 class="text-2xl font-semibold text-slate-900">My appointments</h2></x-slot>
+    <x-slot name="header"><div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-2xl font-semibold text-slate-900">Appointments & lab bookings</h2><div class="flex gap-2"><a href="{{ route('appointments.create') }}" class="rounded-lg border border-teal-300 px-4 py-2 text-sm font-semibold text-teal-800">Book consultation</a><a href="{{ route('portal.lab-tests.book') }}" class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white">Book lab test</a></div></div></x-slot>
     <div class="space-y-5 py-8">
         @forelse($appointments as $appointment)
             @php
                 $balance = $appointment->payment
                     ? $appointment->payment->balance
-                    : (float) $appointment->doctor->consultation_fee;
+                    : (float) ($appointment->consultation_fee ?? $appointment->doctor->consultation_fee);
                 $canPay = $balance > 0 && ! in_array($appointment->status, ['cancelled', 'no_show'], true);
             @endphp
             <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

@@ -26,7 +26,7 @@
     "src": "node_modules/font-awesome/fonts/fontawesome-webfont.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-i8IEp1jc.css",
+    "file": "assets/app-D-e4hF6F.css",
     "name": "app",
     "names": [
       "app.css"
@@ -35,7 +35,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-CaucLIb-.js",
+    "file": "assets/app-1zAbLTE-.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

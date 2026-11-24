@@ -8,8 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/** Writes a privacy-conscious audit record for a completed request without storing credentials or secret values. */
 class AuditTrailService
 {
+    /**
+     * Records the actor, route, response status, subject, and an allowlisted subset of safe request values.
+     * Sensitive request keys are excluded before metadata is serialized.
+     */
     public function record(Request $request, int $statusCode, ?User $actor = null): void
     {
         $route = $request->route();

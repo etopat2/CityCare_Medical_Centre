@@ -6,6 +6,9 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Provides the ensure user is active application component and its related behavior.
+ */
 class EnsureUserIsActive
 {
     /**

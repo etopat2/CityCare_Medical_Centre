@@ -5,8 +5,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+// Adds provider transaction records and Pesapal tracking fields needed for online checkout reconciliation.
 return new class extends Migration
 {
+    /** Applies this migration's schema changes. */
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table): void {
@@ -35,6 +37,7 @@ return new class extends Migration
         });
     }
 
+    /** Reverses this migration's schema changes when rolling back. */
     public function down(): void
     {
         Schema::dropIfExists('payment_transactions');

@@ -12,9 +12,16 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Builds valid appointment slots and protects booking/rescheduling from invalid or concurrent selections.
+ */
 class AppointmentService
 {
-    /** @return array<int, array{start_time: string, end_time: string}> */
+    /**
+     * Returns future, non-conflicting appointment slots inside the doctor's active schedule for a date.
+     *
+     * @return array<int, array{start_time: string, end_time: string}>
+     */
     public function availableSlots(Doctor $doctor, string $date, ?int $ignoreAppointmentId = null): array
     {
         $appointmentDate = Carbon::parse($date)->startOfDay();
@@ -40,6 +47,7 @@ class AppointmentService
         return $slots;
     }
 
+    /** Checks doctor activity, schedule alignment, future time, and patient/doctor overlap for a proposed slot. */
     public function slotError(int $doctorId, int $patientId, string $date, string $startTime, ?int $ignoreAppointmentId = null): ?string
     {
         $doctor = Doctor::query()->find($doctorId);
@@ -92,6 +100,10 @@ class AppointmentService
         return $patientConflict ? 'This patient already has an overlapping appointment.' : null;
     }
 
+    /**
+     * Books or reschedules an appointment while serializing competing doctor/patient requests with cache locks.
+     * The appointment fee is snapshotted so later price changes do not alter an existing booking.
+     */
     public function book(array $data, User $bookedBy, ?Appointment $appointment = null): Appointment
     {
         $doctorId = (int) ($data['doctor_id'] ?? $appointment?->doctor_id);
@@ -128,6 +140,9 @@ class AppointmentService
                             'patient_id' => $patientId,
                             'doctor_id' => $doctor->id,
                             'department_id' => $doctor->department_id,
+                            'consultation_fee' => $appointment->exists && $appointment->doctor_id === $doctor->id
+                                ? ($appointment->consultation_fee ?? $doctor->consultation_fee)
+                                : $doctor->consultation_fee,
                             'appointment_date' => $date,
                             'start_time' => $startTime,
                             'end_time' => $endTime,
@@ -145,6 +160,7 @@ class AppointmentService
         }
     }
 
+    /** Returns whether another active appointment overlaps this doctor's proposed time window. */
     private function hasDoctorConflict(int $doctorId, string $date, string $startTime, string $endTime, ?int $ignoreAppointmentId = null): bool
     {
         return Appointment::query()

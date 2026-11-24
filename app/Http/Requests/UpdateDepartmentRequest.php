@@ -5,6 +5,9 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Defines authorization and input validation rules for the update department request workflow.
+ */
 class UpdateDepartmentRequest extends FormRequest
 {
     /**

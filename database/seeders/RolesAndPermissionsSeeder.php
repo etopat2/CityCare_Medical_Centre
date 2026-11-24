@@ -7,17 +7,21 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
+/** Ensures the clinic roles and permission catalogue exist and synchronizes the intended grants. */
 class RolesAndPermissionsSeeder extends Seeder
 {
     /** @var array<string, array<int, string>> */
     private array $permissionsByRole = [
         'admin' => ['*'],
         'receptionist' => ['patients.view', 'patients.create', 'patients.update', 'appointments.view', 'appointments.create', 'appointments.update', 'appointments.cancel', 'doctors.view', 'schedules.view', 'reports.daily.view', 'reports.export'],
-        'doctor' => ['appointments.view', 'consultations.create', 'consultations.view', 'schedules.own.view', 'patients.treated.view', 'reports.view', 'reports.export'],
+        'doctor' => ['appointments.view', 'consultations.create', 'consultations.view', 'payments.exempt', 'lab-orders.create', 'schedules.own.view', 'patients.treated.view', 'reports.view', 'reports.export'],
         'cashier' => ['appointments.view', 'payments.view', 'payments.create', 'payments.update', 'reports.payments.view', 'reports.export'],
-        'patient' => ['portal.profile.view', 'portal.appointments.view', 'portal.visits.view', 'portal.payments.view'],
+        'patient' => ['portal.profile.view', 'portal.appointments.view', 'portal.visits.view', 'portal.payments.view', 'portal.lab-orders.create', 'appointments.create'],
+        'pharmacist' => ['pharmacy.view', 'prescriptions.dispense', 'medicines.view', 'medicines.manage'],
+        'lab-technician' => ['lab.view', 'lab.process'],
     ];
 
+    /** Creates the clinic roles, permissions, and role-to-permission assignments. */
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -28,10 +32,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'schedules.view', 'schedules.manage', 'schedules.own.view',
             'appointments.view', 'appointments.create', 'appointments.update', 'appointments.cancel',
             'consultations.create', 'consultations.view', 'patients.treated.view',
-            'payments.view', 'payments.create', 'payments.update',
+            'payments.view', 'payments.create', 'payments.update', 'payments.exempt',
+            'pharmacy.view', 'prescriptions.dispense', 'medicines.view', 'medicines.manage', 'pricing.manage',
+            'lab.view', 'lab.process', 'lab.manage', 'lab-orders.create',
             'reports.view', 'reports.export', 'reports.daily.view', 'reports.payments.view',
             'users.manage', 'access.manage', 'audit.view', 'audit.export', 'system-logs.view', 'system-logs.export',
-            'portal.profile.view', 'portal.appointments.view', 'portal.visits.view', 'portal.payments.view',
+            'portal.profile.view', 'portal.appointments.view', 'portal.visits.view', 'portal.payments.view', 'portal.lab-orders.create',
         ];
 
         foreach ($permissions as $permission) {
@@ -42,6 +48,8 @@ class RolesAndPermissionsSeeder extends Seeder
             $role = Role::findOrCreate($roleName, 'web');
             $role->syncPermissions($rolePermissions[0] === '*' ? Permission::all() : $rolePermissions);
         }
+
+        Role::findOrCreate('admin', 'web')->givePermissionTo(Permission::all());
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

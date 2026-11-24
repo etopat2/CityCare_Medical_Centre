@@ -5,6 +5,9 @@ namespace App\Policies;
 use App\Models\Patient;
 use App\Models\User;
 
+/**
+ * Centralizes record-level authorization decisions for patient operations.
+ */
 class PatientPolicy
 {
     /**

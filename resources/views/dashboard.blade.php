@@ -138,7 +138,7 @@
                             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 text-sm last:border-0">
                                 <div>
                                     <p class="font-medium text-slate-800">{{ $payment->reference_number }}</p>
-                                    <p class="text-slate-500">{{ $payment->appointment->appointment_date->format('j M Y') }}</p>
+                                    <p class="text-slate-500">{{ $payment->visit_appointment?->appointment_date?->format('j M Y') ?? 'Clinic visit' }} · {{ $payment->billing_type === 'medication' ? 'Medication' : 'Appointment' }}</p>
                                 </div>
                                 <p class="font-semibold text-slate-800">UGX {{ number_format($payment->balance) }} due</p>
                             </div>

@@ -8,8 +8,12 @@ use App\Models\Payment;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
+/**
+ * Provides signed-in patients with their appointment, visit, payment, and profile views.
+ */
 class PatientPortalController extends Controller
 {
+    /** Shows the signed-in patient's own contact and demographic details. */
     public function profile(Request $request): View
     {
         $patient = $request->user()->patient;
@@ -19,6 +23,7 @@ class PatientPortalController extends Controller
         return view('portal.profile', compact('patient'));
     }
 
+    /** Lists the signed-in patient's appointments with their doctor, status, and payment information. */
     public function appointments(Request $request): View
     {
         $patientId = $request->user()->patient?->id ?? 0;
@@ -33,11 +38,12 @@ class PatientPortalController extends Controller
         return view('portal.appointments', compact('appointments'));
     }
 
+    /** Lists the patient's consultation and laboratory history while preserving clinical record access rules. */
     public function visits(Request $request): View
     {
         $visits = Consultation::query()
             ->where('patient_id', $request->user()->patient?->id ?? 0)
-            ->with(['appointment.department', 'doctor.user'])
+            ->with(['appointment.department', 'appointment.doctor', 'appointment.payment.exemption', 'doctor.user', 'labOrder.items.test', 'labOrder.payment'])
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -45,11 +51,12 @@ class PatientPortalController extends Controller
         return view('portal.visits', compact('visits'));
     }
 
+    /** Lists the patient's balances, transactions, and receipt actions across appointment, medicine, and lab bills. */
     public function payments(Request $request): View
     {
         $payments = Payment::query()
             ->where('patient_id', $request->user()->patient?->id ?? 0)
-            ->with(['appointment.doctor.user', 'transactions' => fn ($query) => $query->latest()])
+            ->with(['appointment.doctor.user', 'medicationOrder.items.medicine', 'medicationOrder.consultation.appointment.doctor.user', 'medicationOrder.consultation.appointment.payment', 'labOrder.items.test', 'labOrder.appointment.doctor.user', 'labOrder.consultation.appointment.payment', 'transactions' => fn ($query) => $query->latest()])
             ->latest()
             ->paginate(15)
             ->withQueryString();

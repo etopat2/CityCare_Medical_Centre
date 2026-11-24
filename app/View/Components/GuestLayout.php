@@ -5,6 +5,9 @@ namespace App\View\Components;
 use Illuminate\View\Component;
 use Illuminate\View\View;
 
+/**
+ * Provides the guest layout application component and its related behavior.
+ */
 class GuestLayout extends Component
 {
     /**

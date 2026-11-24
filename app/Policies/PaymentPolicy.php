@@ -5,6 +5,9 @@ namespace App\Policies;
 use App\Models\Payment;
 use App\Models\User;
 
+/**
+ * Centralizes record-level authorization decisions for payment operations.
+ */
 class PaymentPolicy
 {
     /**

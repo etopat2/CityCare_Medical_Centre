@@ -15,7 +15,7 @@
                         <h3 class="mt-1 text-lg font-semibold text-slate-900">{{ $visit->appointment->department->name }}</h3>
                         <p class="mt-1 text-sm text-slate-600">Dr. {{ $visit->doctor->user->name }}</p>
                     </div>
-                    @if($visit->follow_up_date)
+                    @if($visit->appointment->consultationFeeSettled() && $visit->follow_up_date)
                         <div class="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900">
                             <span class="block text-xs font-semibold uppercase tracking-wide text-teal-700">Follow-up</span>
                             <span class="mt-0.5 block font-medium">{{ $visit->follow_up_date->format('j M Y') }}</span>
@@ -23,6 +23,7 @@
                     @endif
                 </div>
 
+                @if($visit->appointment->consultationFeeSettled())
                 <dl class="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2">
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Symptoms</dt>
@@ -51,6 +52,10 @@
                         </div>
                     @endif
                 </dl>
+                @if($visit->labOrder)<section class="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4"><div class="flex flex-wrap justify-between gap-2"><h3 class="font-semibold text-slate-900">Laboratory referral</h3><span class="text-sm capitalize text-slate-600">{{ str_replace('_', ' ', $visit->labOrder->status) }} · {{ ucfirst($visit->labOrder->payment?->status ?? 'unpaid') }}</span></div><ul class="mt-2 space-y-2">@foreach($visit->labOrder->items as $item)<li class="text-sm"><span class="font-medium">{{ $item->test->name }}</span>@if($item->result && $visit->labOrder->payment?->isSettled())<p class="mt-1 whitespace-pre-wrap text-slate-700">{{ $item->result }}</p>@elseif($item->result)<p class="mt-1 text-amber-800">Results are available after the laboratory bill is settled.</p>@endif</li>@endforeach</ul><a href="{{ route('lab.show', $visit->labOrder) }}" class="mt-3 inline-block text-sm font-semibold text-teal-800">View lab order & payment</a></section>@endif
+                @else
+                    <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><p class="font-semibold">Consultation information is locked</p><p class="mt-1">Your symptoms, diagnosis, treatment plan, prescription, follow-up instructions, and consultation-linked referrals become available when the consultation fee is settled in full.</p><a href="{{ route('portal.payments') }}" class="mt-2 inline-block font-semibold text-teal-800 underline">Review your payments</a></div>
+                @endif
             </article>
         @empty
             <div class="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">

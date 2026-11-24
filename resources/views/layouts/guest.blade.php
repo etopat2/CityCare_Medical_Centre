@@ -5,13 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#0f3d3e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CityCare">
     <title>{{ config('app.name', 'CityCare Medical Centre') }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/citycare-192.png') }}">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => console.error('CityCare service worker registration failed.', error)));
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-[#f2f8f7] font-sans text-slate-800 antialiased">
+    <div id="app-navigation-progress" class="app-navigation-progress" hidden role="status" aria-live="polite"><span class="app-navigation-progress__bar"></span><span class="sr-only">Loading the requested page</span></div>
     <div class="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(25rem,0.85fr)]">
         <aside class="relative hidden overflow-hidden bg-[#102d32] px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
             <div class="absolute -right-32 -top-20 size-[30rem] rounded-full border border-white/10"></div><div class="absolute -right-20 -top-8 size-[26rem] rounded-full border border-white/10"></div>

@@ -9,8 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Presents searchable audit history to administrators with the required audit permissions.
+ */
 class AuditLogController extends Controller
 {
+    /**
+     * Builds the audit log listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         $filters = $request->validate([
@@ -31,6 +37,7 @@ class AuditLogController extends Controller
         return view('admin.audit.index', compact('logs', 'filters', 'todayCount', 'failedCount', 'actorCount', 'actors'));
     }
 
+    /** Streams a filtered CSV export and neutralizes spreadsheet formula prefixes in every cell. */
     public function export(Request $request): StreamedResponse
     {
         $filters = $request->validate([
@@ -67,6 +74,7 @@ class AuditLogController extends Controller
         }, 'citycare-audit-trail-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    /** Applies the shared audit filters and deterministic newest-first ordering used by the page and export. */
     private function filteredQuery(array $filters): Builder
     {
         return DB::table('audit_logs')
@@ -88,6 +96,7 @@ class AuditLogController extends Controller
             ->orderByDesc('id');
     }
 
+    /** Prefixes formula-leading characters to prevent CSV values from executing as spreadsheet formulas. */
     private function safeCell(mixed $value): string
     {
         $cell = (string) ($value ?? '');

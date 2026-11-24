@@ -11,7 +11,7 @@
 
     @php
         $payment = $transaction->payment;
-        $appointment = $payment->appointment;
+        $appointment = $payment->visit_appointment;
     @endphp
 
     <div class="mx-auto max-w-3xl py-8">
@@ -22,7 +22,7 @@
 
             <dl class="mt-6 grid gap-4 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
                 <div><dt class="text-slate-500">Amount to pay</dt><dd class="mt-1 text-lg font-bold text-slate-900">{{ $transaction->currency }} {{ number_format((float) $transaction->amount, 2) }}</dd></div>
-                <div><dt class="text-slate-500">Appointment</dt><dd class="mt-1 font-medium text-slate-800">{{ $appointment->appointment_date->format('j M Y') }} · Dr. {{ $appointment->doctor->user->name }}</dd></div>
+                <div><dt class="text-slate-500">Visit</dt><dd class="mt-1 font-medium text-slate-800">{{ $appointment?->appointment_date?->format('j M Y') ?? ($payment->billing_type === 'laboratory' ? 'Lab order #'.$payment->lab_order_id : 'Clinic visit') }} @if($appointment?->doctor?->user) · Dr. {{ $appointment->doctor->user->name }} @endif</dd></div>
                 <div class="sm:col-span-2"><dt class="text-slate-500">Payment reference</dt><dd class="mt-1 break-all font-mono text-xs text-slate-700">{{ $transaction->merchant_reference }}</dd></div>
             </dl>
 
@@ -73,8 +73,8 @@
                     <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Payment summary</h4>
                     <p class="mt-3 text-2xl font-bold tracking-tight text-slate-900">{{ $transaction->currency }} {{ number_format((float) $transaction->amount, 2) }}</p>
                     <dl class="mt-4 space-y-3 border-t border-slate-200 pt-4 text-sm">
-                        <div><dt class="text-slate-500">Appointment</dt><dd class="mt-1 font-medium text-slate-800">{{ $appointment->appointment_date->format('j M Y') }}</dd></div>
-                        <div><dt class="text-slate-500">Doctor</dt><dd class="mt-1 font-medium text-slate-800">Dr. {{ $appointment->doctor->user->name }}</dd></div>
+                        <div><dt class="text-slate-500">Charge</dt><dd class="mt-1 font-medium text-slate-800">{{ ['medication' => 'Medication fee', 'laboratory' => 'Laboratory tests'][$payment->billing_type] ?? 'Appointment fee' }}</dd></div>
+                        <div><dt class="text-slate-500">Visit</dt><dd class="mt-1 font-medium text-slate-800">{{ $appointment?->appointment_date?->format('j M Y') ?? ($payment->billing_type === 'laboratory' ? 'Lab order #'.$payment->lab_order_id : 'Clinic visit') }} @if($appointment?->doctor?->user) · Dr. {{ $appointment->doctor->user->name }} @endif</dd></div>
                         <div><dt class="text-slate-500">Reference</dt><dd class="mt-1 break-all font-mono text-xs text-slate-700">{{ $transaction->merchant_reference }}</dd></div>
                     </dl>
                     <p class="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-900">Keep this window open until checkout returns you to CityCare. Mobile money payments can take a short time to confirm.</p>
@@ -101,6 +101,7 @@
                 if (modal.open) modal.close();
             });
 
+            
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', openModal, { once: true });
             } else {

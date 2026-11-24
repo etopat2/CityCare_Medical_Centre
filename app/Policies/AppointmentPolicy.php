@@ -5,6 +5,9 @@ namespace App\Policies;
 use App\Models\Appointment;
 use App\Models\User;
 
+/**
+ * Centralizes record-level authorization decisions for appointment operations.
+ */
 class AppointmentPolicy
 {
     /**

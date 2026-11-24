@@ -9,8 +9,14 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Presents application log entries and authorized log exports for administrators.
+ */
 class SystemLogController extends Controller
 {
+    /**
+     * Builds the system log listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         $filters = $request->validate([
@@ -28,6 +34,7 @@ class SystemLogController extends Controller
         ]);
     }
 
+    /** Streams the filtered recent log entries as CSV with spreadsheet formula prefixes neutralized. */
     public function export(Request $request): StreamedResponse
     {
         $filters = $request->validate([
@@ -48,6 +55,7 @@ class SystemLogController extends Controller
         }, 'citycare-system-logs-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    /** Applies the selected severity and text filters to the bounded recent log tail. */
     private function filteredEntries(array $filters): Collection
     {
         $query = trim((string) ($filters['q'] ?? ''));
@@ -110,11 +118,13 @@ class SystemLogController extends Controller
         return array_slice(array_reverse($entries), 0, $limit);
     }
 
+    /** Resolves the configured single-file log path, falling back to Laravel's default log location. */
     private function logPath(): string
     {
         return (string) config('logging.channels.single.path', storage_path('logs/laravel.log'));
     }
 
+    /** Prefixes formula-leading characters so exported log text cannot execute as a spreadsheet formula. */
     private function safeCell(mixed $value): string
     {
         $cell = (string) ($value ?? '');

@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Handles login, session creation, and logout for existing accounts.
+ */
 class AuthenticatedSessionController extends Controller
 {
     /**
@@ -33,8 +36,9 @@ class AuthenticatedSessionController extends Controller
         if ($user->email_verified_at !== null && ! $user->hasRole('admin')) {
             Auth::guard('web')->login($user, $request->boolean('remember'));
             $request->session()->regenerate();
+            $request->session()->forget('url.intended');
 
-            return redirect()->intended(route('dashboard', absolute: false));
+            return redirect()->route('dashboard');
         }
 
         $key = $otpService->limiterKey(AuthOtpService::LOGIN, (string) $user->id, $request->ip());

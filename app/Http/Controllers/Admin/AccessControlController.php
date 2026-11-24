@@ -13,8 +13,14 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
+/**
+ * Maintains application roles, permission grants, and role-level access rules.
+ */
 class AccessControlController extends Controller
 {
+    /**
+     * Builds the access control listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         $filters = $request->validate(['role' => ['nullable', 'integer']]);
@@ -30,6 +36,9 @@ class AccessControlController extends Controller
         return view('admin.access.index', compact('roles', 'selectedRole', 'permissionGroups', 'allowedPermissionIds', 'deniedPermissionIds'));
     }
 
+    /**
+     * Validates and persists a new access control record, then returns the appropriate response.
+     */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -41,6 +50,7 @@ class AccessControlController extends Controller
         return redirect()->route('access.index', ['role' => $role->id])->with('success', 'Role created. Configure its access below.');
     }
 
+    /** Creates a permission entry that can be granted to roles or assigned through a user override. */
     public function storePermission(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -52,6 +62,9 @@ class AccessControlController extends Controller
         return redirect()->route('access.index')->with('success', 'Permission created. Assign it to a role or user and enforce it in the relevant application route or policy.');
     }
 
+    /**
+     * Validates and applies changes to the access control record, preserving its related business rules.
+     */
     public function update(Request $request, Role $role): RedirectResponse
     {
         abort_unless($role->guard_name === 'web', 404);
@@ -100,6 +113,9 @@ class AccessControlController extends Controller
         return redirect()->route('access.index', ['role' => $role->id])->with('success', 'Role access rules updated.');
     }
 
+    /**
+     * Applies the deletion or archival rules for the access control record and reports the result.
+     */
     public function destroy(Role $role): RedirectResponse
     {
         abort_unless($role->guard_name === 'web', 404);

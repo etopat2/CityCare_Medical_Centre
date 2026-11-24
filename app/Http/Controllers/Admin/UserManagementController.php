@@ -17,8 +17,14 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
+/**
+ * Creates and manages system accounts, role assignments, linked clinical profiles, and per-user permission overrides.
+ */
 class UserManagementController extends Controller
 {
+    /**
+     * Builds the user management listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         $filters = $request->validate([
@@ -60,6 +66,9 @@ class UserManagementController extends Controller
         return view('admin.users.index', compact('users', 'roles', 'permissions', 'permissionOverridesByUser', 'filters', 'departments', 'userCount', 'activeUserCount', 'unverifiedUserCount'));
     }
 
+    /**
+     * Validates and persists a new user management record, then returns the appropriate response.
+     */
     public function store(Request $request): RedirectResponse
     {
         $user = $this->saveUser($request);
@@ -67,6 +76,9 @@ class UserManagementController extends Controller
         return redirect()->route('users.index')->with('success', 'User account created.');
     }
 
+    /**
+     * Validates and applies changes to the user management record, preserving its related business rules.
+     */
     public function update(Request $request, User $user): RedirectResponse
     {
         abort_if($user->trashed(), 404);
@@ -75,6 +87,9 @@ class UserManagementController extends Controller
         return redirect()->route('users.index', $request->query())->with('success', 'User account updated.');
     }
 
+    /**
+     * Applies the deletion or archival rules for the user management record and reports the result.
+     */
     public function destroy(User $user): RedirectResponse
     {
         abort_if($user->trashed(), 404);
@@ -87,19 +102,32 @@ class UserManagementController extends Controller
             throw ValidationException::withMessages(['user' => 'Keep at least one active administrator account.']);
         }
 
-        $user->delete();
+        DB::transaction(function () use ($user): void {
+            $user->doctor?->delete();
+            $user->delete();
+        });
 
         return back()->with('success', 'User account removed from active use; its clinical references were retained.');
     }
 
+    /**
+     * Restores a previously removed user management record and its supported related records.
+     */
     public function restore(int $userId): RedirectResponse
     {
         $user = User::withTrashed()->findOrFail($userId);
-        $user->restore();
+
+        DB::transaction(function () use ($user): void {
+            $user->restore();
+            $user->doctor()->withTrashed()->first()?->restore();
+        });
 
         return back()->with('success', 'User account restored.');
     }
 
+    /**
+     * Validates the account category and roles, saves the user, synchronizes eligible profiles, and refreshes permission overrides.
+     */
     private function saveUser(Request $request, ?User $user = null): User
     {
         $roleIds = collect($request->input('roles', []))->filter(fn ($id): bool => is_numeric($id))->map(fn ($id): int => (int) $id)->unique()->values();
@@ -108,6 +136,7 @@ class UserManagementController extends Controller
         $needsDoctorProfile = $roleNames->contains('doctor') && $user?->doctor === null;
 
         $data = $request->validate([
+            'account_type' => [$user === null ? 'required' : 'nullable', Rule::in(['patient', 'doctor', 'staff', 'administrator'])],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)],
             'phone' => [Rule::requiredIf($needsPatientProfile || $needsDoctorProfile), 'nullable', 'string', 'max:30'],
@@ -117,12 +146,12 @@ class UserManagementController extends Controller
             'roles.*' => ['integer', Rule::exists('roles', 'id')->where('guard_name', 'web')],
             'access' => ['sometimes', 'array'],
             'access.*' => ['required', Rule::in(['inherit', 'allow', 'deny'])],
-            'patient_gender' => [Rule::requiredIf($needsPatientProfile), Rule::in(['female', 'male', 'other'])],
+            'patient_gender' => [Rule::requiredIf($needsPatientProfile), 'nullable', Rule::in(['female', 'male', 'other'])],
             'patient_date_of_birth' => [Rule::requiredIf($needsPatientProfile), 'nullable', 'date', 'before:today'],
             'department_id' => [Rule::requiredIf($needsDoctorProfile), 'nullable', 'integer', Rule::exists('departments', 'id')],
             'specialization' => [Rule::requiredIf($needsDoctorProfile), 'nullable', 'string', 'max:150'],
             'license_number' => [Rule::requiredIf($needsDoctorProfile), 'nullable', 'string', 'max:100', Rule::unique('doctors', 'license_number')->ignore($user?->doctor?->id)],
-            'consultation_fee' => [Rule::requiredIf($needsDoctorProfile), 'nullable', 'numeric', 'min:0', 'max:9999999999'],
+            'consultation_fee' => [Rule::requiredIf($needsDoctorProfile), 'nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ]);
 
         $permissionIds = Permission::query()->where('guard_name', 'web')->pluck('id')->map(fn ($id): int => (int) $id)->all();
@@ -133,9 +162,23 @@ class UserManagementController extends Controller
             throw ValidationException::withMessages(['access' => 'One or more selected permissions are unavailable.']);
         }
 
+        if ($user === null) {
+            $selectedRoleNames = $roleNames->values();
+            $rolesMatchAccountType = match ($data['account_type']) {
+                'patient' => $selectedRoleNames->count() === 1 && $selectedRoleNames->contains('patient'),
+                'doctor' => $selectedRoleNames->count() === 1 && $selectedRoleNames->contains('doctor'),
+                'administrator' => $selectedRoleNames->count() === 1 && $selectedRoleNames->contains('admin'),
+                'staff' => $selectedRoleNames->isNotEmpty() && $selectedRoleNames->every(fn (string $roleName): bool => ! in_array($roleName, ['admin', 'doctor', 'patient'], true)),
+            };
+
+            if (! $rolesMatchAccountType) {
+                throw ValidationException::withMessages(['roles' => 'Choose role(s) that match the selected account type.']);
+            }
+        }
+
         $this->protectLastAdministrator($user, $data);
 
-        return DB::transaction(function () use ($user, $data, $roleIds, $submittedAccess): User {
+        return DB::transaction(function () use ($user, $data, $roleIds, $roleNames, $submittedAccess): User {
             $user ??= new User;
             $emailChanged = $user->exists && $user->email !== $data['email'];
             $user->forceFill([
@@ -156,6 +199,9 @@ class UserManagementController extends Controller
         });
     }
 
+    /**
+     * Enforces the protect last administrator before the user management workflow continues.
+     */
     private function protectLastAdministrator(?User $user, array $data): void
     {
         if ($user === null || ! $user->is_active || ! $user->hasRole('admin')) {
@@ -172,6 +218,9 @@ class UserManagementController extends Controller
         }
     }
 
+    /**
+     * Keeps sync role profiles consistent with the saved user management state.
+     */
     private function syncRoleProfiles(User $user, array $data, $roleNames): void
     {
         [$firstName, $lastName] = array_pad(explode(' ', trim($user->name), 2), 2, '');
@@ -213,6 +262,9 @@ class UserManagementController extends Controller
         }
     }
 
+    /**
+     * Keeps sync permission overrides consistent with the saved user management state.
+     */
     private function syncPermissionOverrides(User $user, array $overrides): void
     {
         DB::table('user_permission_overrides')->where('user_id', $user->id)->delete();

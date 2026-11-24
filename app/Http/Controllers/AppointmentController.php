@@ -19,8 +19,14 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Coordinates appointment listing, booking, rescheduling, cancellation, and availability responses.
+ */
 class AppointmentController extends Controller
 {
+    /**
+     * Builds the appointment listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Appointment::class);
@@ -54,18 +60,28 @@ class AppointmentController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('appointments.index', compact('appointments'));
+        $doctors = Doctor::query()->with('user')->orderBy('id')->get();
+        $departments = Department::query()->orderBy('name')->get();
+
+        return view('appointments.index', compact('appointments', 'doctors', 'departments'));
     }
 
+    /**
+     * Returns the form or initial state needed to create a appointment record.
+     */
     public function create(Request $request): View
     {
         $this->authorize('create', Appointment::class);
-        $patient = $request->filled('patient_id') ? Patient::find($request->integer('patient_id')) : null;
+        $patient = $request->user()->hasRole('patient') ? $request->user()->patient : ($request->filled('patient_id') ? Patient::find($request->integer('patient_id')) : null);
+        abort_if($request->user()->hasRole('patient') && ! $patient, 404);
         $doctors = Doctor::with(['user', 'department'])->where('is_active', true)->orderBy('id')->get();
 
         return view('appointments.create', ['appointment' => null, 'patient' => $patient, 'doctors' => $doctors]);
     }
 
+    /**
+     * Validates and persists a new appointment record, then returns the appropriate response.
+     */
     public function store(StoreAppointmentRequest $request, AppointmentService $service): RedirectResponse
     {
         $appointment = $service->book($request->validated(), $request->user());
@@ -73,14 +89,20 @@ class AppointmentController extends Controller
         return redirect()->route('appointments.show', $appointment)->with('success', 'Appointment booked.');
     }
 
+    /**
+     * Loads the requested appointment record and presents its associated details.
+     */
     public function show(Appointment $appointment): View
     {
         $this->authorize('view', $appointment);
-        $appointment->load(['patient', 'doctor.user', 'department', 'consultation', 'payment']);
+        $appointment->load(['patient', 'doctor.user', 'department', 'consultation', 'payment.exemption']);
 
         return view('appointments.show', compact('appointment'));
     }
 
+    /**
+     * Loads the appointment record and edit data required by its form.
+     */
     public function edit(Appointment $appointment): View
     {
         $this->authorize('update', $appointment);
@@ -90,6 +112,9 @@ class AppointmentController extends Controller
         return view('appointments.edit', ['appointment' => $appointment, 'patient' => $appointment->patient, 'doctors' => $doctors]);
     }
 
+    /**
+     * Validates and applies changes to the appointment record, preserving its related business rules.
+     */
     public function update(UpdateAppointmentRequest $request, Appointment $appointment, AppointmentService $service): RedirectResponse
     {
         $service->book($request->validated(), $request->user(), $appointment);
@@ -97,6 +122,7 @@ class AppointmentController extends Controller
         return redirect()->route('appointments.show', $appointment)->with('success', 'Appointment rescheduled.');
     }
 
+    /** Cancels an appointment with role-aware authorization and the appropriate cancellation reason. */
     public function cancel(Request $request, Appointment $appointment): RedirectResponse
     {
         $this->authorize('update', $appointment);
@@ -111,6 +137,7 @@ class AppointmentController extends Controller
         return redirect()->route('appointments.show', $appointment)->with('success', 'Appointment cancelled.');
     }
 
+    /** Changes an appointment status after enforcing valid transitions and patient access boundaries. */
     public function updateStatus(Request $request, Appointment $appointment): RedirectResponse
     {
         $this->authorize('update', $appointment);
@@ -120,6 +147,7 @@ class AppointmentController extends Controller
         return redirect()->route('appointments.show', $appointment)->with('success', 'Appointment status updated.');
     }
 
+    /** Returns JSON time slots for the selected doctor and date, excluding elapsed or already-booked times. */
     public function availableSlots(Request $request, Doctor $doctor, AppointmentService $service): JsonResponse
     {
         abort_unless($request->user()->can('appointments.create'), 403);
@@ -147,9 +175,12 @@ class AppointmentController extends Controller
         ]);
     }
 
+    /**
+     * Returns matching patient options by name, patient number, or phone for authorized appointment forms.
+     */
     public function searchPatients(Request $request): JsonResponse
     {
-        abort_unless($request->user()->can('appointments.create') || $request->user()->can('payments.create'), 403);
+        abort_unless(! $request->user()->hasRole('patient') && ($request->user()->can('appointments.create') || $request->user()->can('payments.create')), 403);
         $data = $request->validate(['q' => ['required', 'string', 'min:2', 'max:100']]);
         $term = '%'.$data['q'].'%';
         $patients = Patient::query()
@@ -164,6 +195,7 @@ class AppointmentController extends Controller
         return response()->json(['patients' => $patients->map(fn (Patient $patient): array => (new PatientSearchResource($patient))->resolve($request))->all()]);
     }
 
+    /** Returns active doctors for the selected department as options for appointment forms. */
     public function doctorsByDepartment(Request $request, Department $department): JsonResponse
     {
         abort_unless($request->user()->can('doctors.view'), 403);

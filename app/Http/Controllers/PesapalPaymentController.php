@@ -15,8 +15,12 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
+/**
+ * Starts and verifies PesaPal checkout flows for appointment, medication, and laboratory payments.
+ */
 class PesapalPaymentController extends Controller
 {
+    /** Starts an appointment checkout for a patient-entered partial amount, capped at the current balance. */
     public function start(Request $request, Appointment $appointment, PesapalService $pesapal): RedirectResponse
     {
         $patient = $request->user()->patient;
@@ -24,7 +28,7 @@ class PesapalPaymentController extends Controller
         abort_if(in_array($appointment->status, ['cancelled', 'no_show'], true), 422, 'This appointment cannot be paid online.');
 
         $appointment->loadMissing(['doctor.user', 'payment']);
-        $fee = (float) $appointment->doctor->consultation_fee;
+        $fee = (float) ($appointment->consultation_fee ?? $appointment->doctor->consultation_fee);
         abort_if($fee <= 0, 422, 'This appointment does not have a payable fee.');
         $availableBalance = $appointment->payment?->balance ?? $fee;
         $validated = $request->validate([
@@ -50,7 +54,7 @@ class PesapalPaymentController extends Controller
                     ]);
                 }
 
-                $balance = round((float) $payment->amount - (float) $payment->amount_paid, 2);
+                $balance = round($payment->balance, 2);
                 abort_if($balance <= 0, 422, 'This appointment has no remaining balance.');
                 abort_if($requestedAmount > $balance, 422, 'The amount entered is higher than the remaining balance.');
 
@@ -137,17 +141,17 @@ class PesapalPaymentController extends Controller
                 'currency' => $transaction->currency,
                 'amount' => (float) $transaction->amount,
                 'description' => 'CityCare appointment payment '.$appointment->id,
-                'callback_url' => route('payments.pesapal.callback'),
-                'cancellation_url' => route('portal.payments'),
+                'callback_url' => $pesapal->publicRoute('payments.pesapal.callback'),
+                'cancellation_url' => $pesapal->publicRoute('portal.payments'),
                 'notification_id' => $ipnId,
-                'billing_address' => [
+                'billing_address' => array_filter([
                     'email_address' => $email,
-                    'phone_number' => $phone,
+                    'phone_number' => $phone !== '' ? $phone : null,
                     'country_code' => 'UG',
                     'first_name' => $patient->first_name,
                     'last_name' => $patient->last_name,
-                    'line_1' => $patient->address ?: '',
-                ],
+                    'line_1' => $pesapal->formatAddressLine($patient->address),
+                ], fn (mixed $value): bool => $value !== null && $value !== ''),
             ]);
 
             $redirectUrl = $result['redirect_url'] ?? null;
@@ -168,15 +172,187 @@ class PesapalPaymentController extends Controller
 
             return redirect()->route('portal.payments.checkout', $transaction);
         } catch (Throwable $exception) {
-            report($exception);
+            $amountLimitExceeded = $this->isPesapalAmountLimitError($exception);
+            Log::error('Pesapal appointment checkout setup failed.', [
+                'appointment_id' => $appointment->id,
+                'payment_transaction_id' => isset($transaction) ? $transaction->id : null,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
             if (isset($transaction) && $transaction instanceof PaymentTransaction && ! $transaction->redirect_url) {
-                $transaction->update(['status' => 'failed', 'status_description' => 'Checkout could not be started.']);
+                $transaction->update([
+                    'status' => 'failed',
+                    'status_description' => $amountLimitExceeded
+                        ? 'Amount exceeds the PesaPal merchant transaction limit.'
+                        : 'Checkout could not be started.',
+                ]);
             }
 
-            return back()->withErrors(['payment' => 'We could not prepare the secure checkout. No payment was taken. Please try again, or contact the clinic if the problem continues.']);
+            return back()->withErrors(['payment' => $amountLimitExceeded
+                ? 'PesaPal declined this amount because it exceeds the clinic account transaction limit. Try a smaller partial payment, or contact the clinic to ask PesaPal to raise the limit. No payment was taken.'
+                : 'We could not prepare the secure checkout. No payment was taken. Please try again, or contact the clinic if the problem continues.']);
         }
     }
 
+    /** Starts an online medication checkout only after pharmacy review and validates the partial amount under lock. */
+    public function startMedication(Request $request, \App\Models\MedicationOrder $medicationOrder, PesapalService $pesapal): RedirectResponse
+    {
+        $patient = $request->user()->patient;
+        abort_unless($patient && $medicationOrder->patient_id === $patient->id, 404);
+        abort_unless($medicationOrder->reviewed_at && $medicationOrder->payment, 409, 'The medication bill is not ready for payment.');
+        abort_if($medicationOrder->consultation && ! $medicationOrder->consultation->appointment?->consultationFeeSettled(), 409, 'Settle the consultation fee before paying for or viewing prescription details.');
+        $payment = $medicationOrder->payment;
+        $balance = (float) $payment->balance;
+        abort_if($balance <= 0, 422, 'This medication bill has no remaining balance.');
+        $data = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:'.(int) floor($balance)]]);
+
+        try {
+            $transaction = DB::transaction(function () use ($medicationOrder, $data): PaymentTransaction {
+                $order = \App\Models\MedicationOrder::query()->whereKey($medicationOrder->id)->lockForUpdate()->firstOrFail();
+                $payment = Payment::query()->where('medication_order_id', $order->id)->lockForUpdate()->firstOrFail();
+                $amount = (float) $data['amount'];
+                abort_if($amount > $payment->balance, 422, 'The amount entered is higher than the remaining medication balance.');
+                abort_if($payment->transactions()->where('status', 'review')->exists(), 409, 'A previous online payment needs clinic review.');
+                $pending = $payment->transactions()->where('provider', 'pesapal')->where('status', 'pending')->latest('id')->first();
+                if ($pending) {
+                    abort_if(abs((float) $pending->amount - $amount) > 0.01, 409, 'A different medication checkout is already in progress. Finish it before changing the amount.');
+                    return $pending;
+                }
+
+                return $payment->transactions()->create([
+                    'provider' => 'pesapal',
+                    'merchant_reference' => 'CC-'.Str::upper((string) Str::ulid()),
+                    'amount' => $amount,
+                    'currency' => config('services.pesapal.currency', 'UGX'),
+                    'status' => 'pending',
+                ]);
+            });
+
+            if ($transaction->redirect_url && $transaction->tracking_id) {
+                return redirect()->route('portal.payments.checkout', $transaction);
+            }
+            $ipnId = config('services.pesapal.ipn_id');
+            abort_if(blank($ipnId), 503, 'Pesapal is not fully configured.');
+            $patientUser = $request->user();
+            $patient = $medicationOrder->patient;
+            $email = $patient->email ?: $patientUser->email;
+            $phone = trim((string) $patient->phone);
+            abort_if(blank($email) && $phone === '', 422, 'Add a phone number or email to your patient profile before paying online.');
+            $result = $pesapal->submitOrder([
+                'id' => $transaction->merchant_reference,
+                'currency' => $transaction->currency,
+                'amount' => (float) $transaction->amount,
+                'description' => 'CityCare medication payment '.$medicationOrder->id,
+                'callback_url' => $pesapal->publicRoute('payments.pesapal.callback'),
+                'cancellation_url' => $pesapal->publicRoute('portal.payments'),
+                'notification_id' => $ipnId,
+                'billing_address' => array_filter([
+                    'email_address' => $email,
+                    'phone_number' => $phone !== '' ? $phone : null,
+                    'country_code' => 'UG',
+                    'first_name' => $patient->first_name,
+                    'last_name' => $patient->last_name,
+                    'line_1' => $pesapal->formatAddressLine($patient->address),
+                ], fn (mixed $value): bool => $value !== null && $value !== ''),
+            ]);
+            $redirectUrl = $result['redirect_url'] ?? null;
+            $trackingId = $result['order_tracking_id'] ?? null;
+            $host = is_string($redirectUrl) ? parse_url($redirectUrl, PHP_URL_HOST) : null;
+            abort_unless(is_string($redirectUrl) && filter_var($redirectUrl, FILTER_VALIDATE_URL) && is_string($host)
+                && (strtolower($host) === 'pesapal.com' || str_ends_with(strtolower($host), '.pesapal.com'))
+                && is_string($trackingId) && $trackingId !== '', 502, 'Pesapal did not return a valid checkout link.');
+            $transaction->update(['tracking_id' => $trackingId, 'redirect_url' => $redirectUrl]);
+
+            return redirect()->route('portal.payments.checkout', $transaction);
+        } catch (Throwable $exception) {
+            report($exception);
+            $amountLimitExceeded = $this->isPesapalAmountLimitError($exception);
+            if (isset($transaction) && $transaction instanceof PaymentTransaction && ! $transaction->redirect_url) {
+                $transaction->update([
+                    'status' => 'failed',
+                    'status_description' => $amountLimitExceeded
+                        ? 'Amount exceeds the PesaPal merchant transaction limit.'
+                        : 'Checkout could not be started.',
+                ]);
+            }
+
+            return back()->withErrors(['payment' => $amountLimitExceeded
+                ? 'PesaPal declined this amount because it exceeds the clinic account transaction limit. Try a smaller partial payment, or contact the clinic to ask PesaPal to raise the limit. No payment was taken.'
+                : 'We could not prepare the medication checkout. No payment was taken. Please try again.']);
+        }
+    }
+
+    /** Starts an online laboratory checkout and prevents conflicting pending checkouts for different amounts. */
+    public function startLab(Request $request, \App\Models\LabOrder $labOrder, PesapalService $pesapal): RedirectResponse
+    {
+        $patient = $request->user()->patient;
+        abort_unless($patient && $labOrder->patient_id === $patient->id, 404);
+        abort_if($labOrder->consultation && ! $labOrder->consultation->appointment?->consultationFeeSettled(), 409, 'Settle the consultation fee before paying for or viewing referral details.');
+        $payment = $labOrder->payment;
+        abort_unless($payment, 409, 'The laboratory bill is not ready for payment.');
+        $balance = (float) $payment->balance;
+        abort_if($balance <= 0, 422, 'This laboratory bill has no remaining balance.');
+        $data = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:'.(int) floor($balance)]]);
+
+        try {
+            $transaction = DB::transaction(function () use ($labOrder, $data): PaymentTransaction {
+                $order = \App\Models\LabOrder::query()->whereKey($labOrder->id)->lockForUpdate()->firstOrFail();
+                $payment = Payment::query()->where('lab_order_id', $order->id)->lockForUpdate()->firstOrFail();
+                $amount = (float) $data['amount'];
+                abort_if($amount > $payment->balance, 422, 'The amount entered is higher than the remaining laboratory balance.');
+                abort_if($payment->transactions()->where('status', 'review')->exists(), 409, 'A previous online payment needs clinic review.');
+                $pending = $payment->transactions()->where('provider', 'pesapal')->where('status', 'pending')->latest('id')->first();
+                if ($pending) {
+                    abort_if(abs((float) $pending->amount - $amount) > 0.01, 409, 'A different laboratory checkout is already in progress. Finish it before changing the amount.');
+                    return $pending;
+                }
+                return $payment->transactions()->create(['provider' => 'pesapal', 'merchant_reference' => 'CC-'.Str::upper((string) Str::ulid()), 'amount' => $amount, 'currency' => config('services.pesapal.currency', 'UGX'), 'status' => 'pending']);
+            });
+
+            if ($transaction->redirect_url && $transaction->tracking_id) return redirect()->route('portal.payments.checkout', $transaction);
+            $ipnId = config('services.pesapal.ipn_id');
+            abort_if(blank($ipnId), 503, 'Pesapal is not fully configured.');
+            $patientUser = $request->user();
+            $email = $patient->email ?: $patientUser->email;
+            $phone = trim((string) $patient->phone);
+            abort_if(blank($email) && $phone === '', 422, 'Add a phone number or email to your patient profile before paying online.');
+            $result = $pesapal->submitOrder([
+                'id' => $transaction->merchant_reference, 'currency' => $transaction->currency, 'amount' => (float) $transaction->amount,
+                'description' => 'CityCare laboratory payment '.$labOrder->id, 'callback_url' => $pesapal->publicRoute('payments.pesapal.callback'),
+                'cancellation_url' => $pesapal->publicRoute('portal.payments'), 'notification_id' => $ipnId,
+                'billing_address' => array_filter([
+                    'email_address' => $email,
+                    'phone_number' => $phone !== '' ? $phone : null,
+                    'country_code' => 'UG',
+                    'first_name' => $patient->first_name,
+                    'last_name' => $patient->last_name,
+                    'line_1' => $pesapal->formatAddressLine($patient->address),
+                ], fn (mixed $value): bool => $value !== null && $value !== ''),
+            ]);
+            $url = $result['redirect_url'] ?? null;
+            $tracking = $result['order_tracking_id'] ?? null;
+            $host = is_string($url) ? parse_url($url, PHP_URL_HOST) : null;
+            abort_unless(is_string($url) && filter_var($url, FILTER_VALIDATE_URL) && is_string($host) && (strtolower($host) === 'pesapal.com' || str_ends_with(strtolower($host), '.pesapal.com')) && is_string($tracking) && $tracking !== '', 502, 'Pesapal did not return a valid checkout link.');
+            $transaction->update(['tracking_id' => $tracking, 'redirect_url' => $url]);
+            return redirect()->route('portal.payments.checkout', $transaction);
+        } catch (Throwable $exception) {
+            report($exception);
+            $amountLimitExceeded = $this->isPesapalAmountLimitError($exception);
+            if (isset($transaction) && $transaction instanceof PaymentTransaction && ! $transaction->redirect_url) {
+                $transaction->update([
+                    'status' => 'failed',
+                    'status_description' => $amountLimitExceeded
+                        ? 'Amount exceeds the PesaPal merchant transaction limit.'
+                        : 'Checkout could not be started.',
+                ]);
+            }
+            return back()->withErrors(['payment' => $amountLimitExceeded
+                ? 'PesaPal declined this amount because it exceeds the clinic account transaction limit. Try a smaller partial payment, or contact the clinic to ask PesaPal to raise the limit. No payment was taken.'
+                : 'We could not prepare the laboratory checkout. No payment was taken. Please try again.']);
+        }
+    }
+
+    /** Shows the hosted-checkout handoff only to the patient who owns the pending transaction. */
     public function checkout(Request $request, PaymentTransaction $paymentTransaction): \Illuminate\Contracts\View\View|RedirectResponse
     {
         $patient = $request->user()->patient;
@@ -191,11 +367,12 @@ class PesapalPaymentController extends Controller
             return redirect()->route('portal.payments')->with('status', 'This payment session is no longer available. Start a new payment or contact the clinic.');
         }
 
-        $paymentTransaction->load('payment.appointment.doctor.user');
+        $paymentTransaction->load(['payment.appointment.doctor.user', 'payment.medicationOrder.consultation.appointment.doctor.user', 'payment.labOrder.appointment.doctor.user', 'payment.labOrder.items.test']);
 
         return view('portal.payments.checkout', ['transaction' => $paymentTransaction]);
     }
 
+    /** Handles the browser return from PesaPal and refreshes provider status before messaging the patient. */
     public function callback(Request $request, PesapalService $pesapal): RedirectResponse
     {
         $trackingId = $request->string('OrderTrackingId')->toString();
@@ -221,6 +398,7 @@ class PesapalPaymentController extends Controller
         }
     }
 
+    /** Lets a patient refresh only a PesaPal transaction linked to their own payment. */
     public function refresh(Request $request, PaymentTransaction $paymentTransaction, PesapalService $pesapal): RedirectResponse
     {
         $patient = $request->user()->patient;
@@ -249,6 +427,7 @@ class PesapalPaymentController extends Controller
         }
     }
 
+    /** Acknowledges PesaPal's server notification after querying and reconciling its transaction status. */
     public function ipn(Request $request, PesapalService $pesapal): JsonResponse
     {
         $trackingId = $request->string('OrderTrackingId')->toString();
@@ -276,6 +455,10 @@ class PesapalPaymentController extends Controller
         }
     }
 
+    /**
+     * Verifies provider identifiers and amount/currency, then applies the payment state exactly once under lock.
+     * Invalid or inconsistent provider responses are kept out of the paid balance and sent for review.
+     */
     private function refreshTransaction(string $trackingId, string $merchantReference, PesapalService $pesapal): PaymentTransaction
     {
         if ($trackingId === '' || $merchantReference === '') {
@@ -333,22 +516,25 @@ class PesapalPaymentController extends Controller
 
             if ($newStatus === 'completed' && ! $wasCompleted) {
                 $newAmountPaid = round((float) $payment->amount_paid + (float) $locked->amount, 2);
-                if ($newAmountPaid > (float) $payment->amount + 0.01) {
+                if ($newAmountPaid + (float) $payment->amount_waived > (float) $payment->amount + 0.01) {
                     $locked->update(['status' => 'review']);
                     Log::critical('Pesapal payment would exceed the appointment balance.', ['payment_transaction_id' => $locked->id]);
 
                     return $locked->refresh();
                 }
 
-                $payment->amount_paid = min($newAmountPaid, (float) $payment->amount);
+                $payment->amount_paid = min($newAmountPaid, max(0, (float) $payment->amount - (float) $payment->amount_waived));
                 $payment->payment_method = $this->mapPaymentMethod($locked->payment_method);
-                $payment->status = $payment->amount_paid >= (float) $payment->amount ? 'paid' : 'partial';
+                $payment->status = $payment->amount_paid + (float) $payment->amount_waived >= (float) $payment->amount ? 'paid' : 'partial';
                 $payment->paid_at = now();
                 $payment->received_by = null;
                 $payment->save();
+                if ($payment->billing_type === 'laboratory' && $payment->status === 'paid') {
+                    $payment->labOrder()->update(['status' => 'queued']);
+                }
             } elseif ($newStatus === 'reversed' && $wasCompleted) {
                 $payment->amount_paid = max(0, round((float) $payment->amount_paid - (float) $locked->amount, 2));
-                $payment->status = $payment->amount_paid >= (float) $payment->amount
+                $payment->status = $payment->amount_paid + (float) $payment->amount_waived >= (float) $payment->amount
                     ? 'paid'
                     : ($payment->amount_paid > 0 ? 'partial' : 'pending');
                 $payment->paid_at = $payment->amount_paid > 0 ? now() : null;
@@ -359,11 +545,21 @@ class PesapalPaymentController extends Controller
         });
     }
 
+    /** Maps PesaPal's method description to the clinic's card or mobile-money receipt category. */
     private function mapPaymentMethod(?string $pesapalMethod): string
     {
         return str_contains(strtolower((string) $pesapalMethod), 'card')
             || preg_match('/visa|mastercard|amex|american express|discover/i', (string) $pesapalMethod)
             ? 'card'
             : 'mobile_money';
+    }
+
+    /** Identifies the provider's merchant-level amount cap so checkout can give an actionable response. */
+    private function isPesapalAmountLimitError(Throwable $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'amount exceeds limit')
+            || str_contains($message, 'amount exceeds the transaction limit');
     }
 }

@@ -3,11 +3,13 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
+// Adds the permission required to export application logs.
 return new class extends Migration
 {
     /**
      * Run the migrations.
      */
+    /** Applies this migration's schema changes. */
     public function up(): void
     {
         DB::table('permissions')->updateOrInsert(
@@ -26,6 +28,7 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
+    /** Reverses this migration's schema changes when rolling back. */
     public function down(): void
     {
         $permissionId = DB::table('permissions')->where('name', 'system-logs.export')->where('guard_name', 'web')->value('id');

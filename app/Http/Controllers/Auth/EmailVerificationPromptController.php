@@ -7,6 +7,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Prompts authenticated users with unverified email addresses to complete verification.
+ */
 class EmailVerificationPromptController extends Controller
 {
     /**

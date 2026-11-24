@@ -7,6 +7,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
+/**
+ * Defines authorization and input validation rules for the update appointment request workflow.
+ */
 class UpdateAppointmentRequest extends FormRequest
 {
     /**
@@ -33,6 +36,9 @@ class UpdateAppointmentRequest extends FormRequest
         ];
     }
 
+    /**
+     * Adds cross-field validation checks that depend on the validated request context.
+     */
     public function after(): array
     {
         return [function (Validator $validator): void {

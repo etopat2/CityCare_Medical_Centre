@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Verifies the signed-in user?s password before protected account actions.
+ */
 class ConfirmablePasswordController extends Controller
 {
     /**

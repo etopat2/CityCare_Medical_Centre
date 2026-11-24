@@ -12,13 +12,22 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Validates password reset requests and sends reset links to eligible accounts.
+ */
 class PasswordResetLinkController extends Controller
 {
+    /**
+     * Returns the form or initial state needed to create a password reset link record.
+     */
     public function create(): View
     {
         return view('auth.forgot-password');
     }
 
+    /**
+     * Validates and persists a new password reset link record, then returns the appropriate response.
+     */
     public function store(Request $request, AuthOtpService $otpService): RedirectResponse
     {
         $validated = $request->validate([

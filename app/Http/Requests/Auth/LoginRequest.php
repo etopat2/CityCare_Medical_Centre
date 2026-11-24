@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Defines authorization and input validation rules for the login request workflow.
+ */
 class LoginRequest extends FormRequest
 {
     /**

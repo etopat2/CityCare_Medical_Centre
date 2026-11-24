@@ -5,6 +5,9 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Serializes doctor option data into the stable response shape used by API clients.
+ */
 class DoctorOptionResource extends JsonResource
 {
     /**

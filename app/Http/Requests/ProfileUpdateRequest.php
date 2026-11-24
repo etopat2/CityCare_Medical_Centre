@@ -7,6 +7,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Defines authorization and input validation rules for the profile update request workflow.
+ */
 class ProfileUpdateRequest extends FormRequest
 {
     /**

@@ -4,11 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+// Creates the user accounts table used for authentication.
 return new class extends Migration
 {
     /**
      * Run the migrations.
      */
+    /** Applies this migration's schema changes. */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
@@ -40,6 +42,7 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
+    /** Reverses this migration's schema changes when rolling back. */
     public function down(): void
     {
         Schema::dropIfExists('users');

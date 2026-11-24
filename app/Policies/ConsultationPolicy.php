@@ -6,6 +6,9 @@ use App\Models\Appointment;
 use App\Models\Consultation;
 use App\Models\User;
 
+/**
+ * Centralizes record-level authorization decisions for consultation operations.
+ */
 class ConsultationPolicy
 {
     /**
@@ -26,7 +29,8 @@ class ConsultationPolicy
         }
 
         if ($user->hasRole('patient')) {
-            return $consultation->patient?->user_id === $user->id;
+            return $consultation->patient?->user_id === $user->id
+                && $consultation->appointment?->consultationFeeSettled();
         }
 
         return $user->can('consultations.view');

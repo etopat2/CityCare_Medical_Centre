@@ -5,13 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#0f3d3e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CityCare">
     <title>{{ trim($__env->yieldContent('title', config('app.name', 'CityCare'))) }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/citycare-192.png') }}">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => console.error('CityCare service worker registration failed.', error)));
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 antialiased">
+    <div id="app-navigation-progress" class="app-navigation-progress" hidden role="status" aria-live="polite"><span class="app-navigation-progress__bar"></span><span class="sr-only">Loading the requested page</span></div>
     <div x-data="{ sidebarOpen: false }" class="min-h-screen">
         <div x-cloak x-show="sidebarOpen" x-transition.opacity class="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" @click="sidebarOpen = false" aria-hidden="true"></div>
 
@@ -30,6 +41,7 @@
                     <x-sidebar-link :href="route('portal.appointments')" icon="calendar-check-o" :active="request()->routeIs('portal.appointments')">My appointments</x-sidebar-link>
                     <x-sidebar-link :href="route('portal.visits')" icon="heartbeat" :active="request()->routeIs('portal.visits')">My visit history</x-sidebar-link>
                     <x-sidebar-link :href="route('portal.payments')" icon="credit-card" :active="request()->routeIs('portal.payments')">My payments</x-sidebar-link>
+                    <x-sidebar-link :href="route('lab.index')" icon="flask" :active="request()->routeIs('lab.*')">My lab bookings</x-sidebar-link>
                 @endrole
 
                 @canany(['patients.view', 'patients.create'])<x-sidebar-link :href="route('patients.index')" icon="users" :active="request()->routeIs('patients.*')">Patients</x-sidebar-link>@endcanany
@@ -38,6 +50,10 @@
                 @can('departments.manage')<x-sidebar-link :href="route('departments.index')" icon="hospital-o" :active="request()->routeIs('departments.*')">Departments</x-sidebar-link>@endcan
                 @can('schedules.manage')<x-sidebar-link :href="route('doctor-schedules.index')" icon="clock-o" :active="request()->routeIs('doctor-schedules.*')">Doctor schedules</x-sidebar-link>@endcan
                 @canany(['consultations.view', 'consultations.create'])<x-sidebar-link :href="route('consultations.index')" icon="stethoscope" :active="request()->routeIs('consultations.*')">Consultations</x-sidebar-link>@endcanany
+                @can('pharmacy.view')<x-sidebar-link :href="route('pharmacy.index')" icon="medkit" :active="request()->routeIs('pharmacy.*')">Pharmacy & dispensing</x-sidebar-link>@endcan
+                @canany(['lab.view', 'lab.process'])<x-sidebar-link :href="route('lab.index')" icon="flask" :active="request()->routeIs('lab.*')">Laboratory</x-sidebar-link>@endcanany
+                @canany(['medicines.view', 'medicines.manage'])<x-sidebar-link :href="route('medicines.index')" icon="archive" :active="request()->routeIs('medicines.*')">Medicines & stock</x-sidebar-link>@endcanany
+                @can('pricing.manage')<x-sidebar-link :href="route('pricing.index')" icon="tags" :active="request()->routeIs('pricing.*')">Clinic pricing</x-sidebar-link>@endcan
                 @canany(['payments.view', 'payments.create'])<x-sidebar-link :href="route('payments.index')" icon="money" :active="request()->routeIs('payments.*')">Payments</x-sidebar-link>@endcanany
 
                 @canany(['reports.view', 'reports.daily.view', 'reports.payments.view'])
@@ -95,6 +111,22 @@
             </footer>
         </div>
     </div>
+
+    <dialog id="app-confirm-dialog" class="app-confirm-dialog m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-[0_28px_90px_rgba(2,6,23,0.42)] ring-1 ring-white/70" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-message">
+        <div class="p-6 sm:p-7">
+            <div class="flex items-start gap-4">
+                <span class="grid size-11 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i></span>
+                <div class="min-w-0 pt-0.5">
+                    <h2 id="app-confirm-title" class="text-lg font-semibold tracking-tight">Please confirm</h2>
+                    <p id="app-confirm-message" class="mt-2 text-sm leading-6 text-slate-600">Are you sure you want to continue?</p>
+                </div>
+            </div>
+            <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button id="app-confirm-cancel" type="button" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-700 focus:ring-offset-2">Cancel</button>
+                <button id="app-confirm-accept" type="button" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-rose-700 px-5 text-sm font-semibold text-white transition hover:bg-rose-800 focus:outline-none focus:ring-2 focus:ring-rose-700 focus:ring-offset-2">OK</button>
+            </div>
+        </div>
+    </dialog>
 
     {{-- Flash and validation summaries use Toastify; field messages remain beside their inputs. --}}
     @if(session('success'))<script>document.addEventListener('DOMContentLoaded', () => window.CityCareToast(@json(session('success')), 'success'));</script>@endif

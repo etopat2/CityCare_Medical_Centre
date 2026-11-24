@@ -7,6 +7,9 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 
+/**
+ * Verifies signed email links and marks the matching account address as confirmed.
+ */
 class VerifyEmailController extends Controller
 {
     /**

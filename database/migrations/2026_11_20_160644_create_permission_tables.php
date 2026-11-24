@@ -4,11 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+// Creates the role and permission tables used by the authorization package.
 return new class extends Migration
 {
     /**
      * Run the migrations.
      */
+    /** Applies this migration's schema changes. */
     public function up(): void
     {
         $teams = config('permission.teams');
@@ -122,6 +124,7 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
+    /** Reverses this migration's schema changes when rolling back. */
     public function down(): void
     {
         $tableNames = config('permission.table_names');

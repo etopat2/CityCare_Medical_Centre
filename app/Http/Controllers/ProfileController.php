@@ -12,6 +12,9 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
+/**
+ * Handles the signed-in user?s profile updates and account preferences.
+ */
 class ProfileController extends Controller
 {
     /**

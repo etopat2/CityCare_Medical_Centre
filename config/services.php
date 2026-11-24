@@ -40,6 +40,7 @@ return [
         'consumer_secret' => env('PESAPAL_CONSUMER_SECRET'),
         'environment' => env('PESAPAL_ENVIRONMENT', 'sandbox'),
         'ipn_id' => env('PESAPAL_IPN_ID'),
+        'public_url' => env('PESAPAL_PUBLIC_URL') ?: env('APP_URL', 'http://localhost'),
         'base_url' => env('PESAPAL_ENVIRONMENT', 'sandbox') === 'live'
             ? 'https://pay.pesapal.com/v3'
             : 'https://cybqa.pesapal.com/pesapalv3',

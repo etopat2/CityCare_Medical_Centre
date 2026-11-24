@@ -3,8 +3,10 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
+// Adds the administration capabilities needed by existing role records.
 return new class extends Migration
 {
+    /** Applies this migration's schema changes. */
     public function up(): void
     {
         $permissionIds = [];
@@ -33,6 +35,7 @@ return new class extends Migration
         }
     }
 
+    /** Reverses this migration's schema changes when rolling back. */
     public function down(): void
     {
         $permissionIds = DB::table('permissions')

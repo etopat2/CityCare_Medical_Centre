@@ -5,6 +5,9 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 
+/**
+ * Formats report data for export using the application reporting conventions.
+ */
 class ReportExport implements FromArray, WithHeadings
 {
     /**

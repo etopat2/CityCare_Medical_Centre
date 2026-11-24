@@ -5,6 +5,9 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Serializes available slot data into the stable response shape used by API clients.
+ */
 class AvailableSlotResource extends JsonResource
 {
     /**

@@ -8,15 +8,20 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-// Service for handling one-time password (OTP) challenges for authentication
+/**
+ * Issues, verifies, rate-limits, and consumes one-time codes for sign-in and password reset.
+ */
 class AuthOtpService
 {
-    // Constants representing the purposes for which an OTP can be issued
+    // A challenge is tied to one of these purposes so a login code cannot reset a password.
     public const LOGIN = 'login';
 
     public const PASSWORD_RESET = 'password_reset';
 
-    // Issue a new OTP challenge for a user and purpose, returning the generated code
+    /**
+     * Replaces the user's active challenge with a short-lived code and returns the plaintext for delivery.
+     * Only the hash is persisted; callers must send the returned code through the configured notification channel.
+     */
     public function issue(User $user, string $purpose): string
     {
         // Generate a random 6-digit code
@@ -67,8 +72,6 @@ class AuthOtpService
                     DB::table('auth_otp_challenges')
                         ->where('id', $challenge->id)
                         ->delete();
-                
-                // Optionally, you could log or notify the user about the failed attempts here
                 } else {
                     // Update the attempts count and timestamp for the challenge
                     DB::table('auth_otp_challenges')
@@ -97,7 +100,9 @@ class AuthOtpService
         }
     }
 
-    // Generate a unique key for rate limiting OTP requests based on the purpose, user identifier, and IP address
+    /**
+     * Builds a stable, privacy-preserving key that separates limits by purpose, identifier, and source IP.
+     */
     public function limiterKey(string $purpose, string $identifier, string $ip): string
     {
         return 'auth-otp:'.Str::lower($purpose).'|'.hash('sha256', Str::lower($identifier).'|'.$ip);

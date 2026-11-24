@@ -6,6 +6,9 @@ use App\Models\DoctorSchedule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
+/**
+ * Defines authorization and input validation rules for the update doctor schedule request workflow.
+ */
 class UpdateDoctorScheduleRequest extends FormRequest
 {
     /**
@@ -33,6 +36,9 @@ class UpdateDoctorScheduleRequest extends FormRequest
         ];
     }
 
+    /**
+     * Adds cross-field validation checks that depend on the validated request context.
+     */
     public function after(): array
     {
         return [function (Validator $validator): void {

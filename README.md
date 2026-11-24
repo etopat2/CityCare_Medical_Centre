@@ -1,14 +1,21 @@
 # CityCare Medical Centre
 
-CityCare is a responsive Laravel application for managing clinic departments, doctors, weekly schedules, patients, appointments, consultations, payments and management reports. The application uses role and permission checks at route, policy and view level.
+CityCare is a responsive Laravel application for managing clinic departments, doctors, weekly schedules, patients, appointments, consultations, pharmacy, payments and management reports. The application uses role and permission checks at route, policy and view level.
 
 ## Features by role
 
 - **Admin:** all clinic records, users created through doctor and patient workflows, clinic reports and exports.
 - **Receptionist:** patient records, doctor directory, appointment booking and daily appointment reports.
 - **Doctor:** own weekly schedule and appointments, treated patient history, consultations, workload and attendance reports for their own appointments.
-- **Cashier:** appointment billing, partial payments, balance tracking, receipts and payment reports.
+- **Cashier:** appointment and medication billing, partial payments, balance tracking, downloadable payment receipts and payment reports.
+- **Pharmacist:** medicine catalogue and stock, prescription review, medication fee creation, dispensing and patient clearance.
 - **Patient:** own profile, appointment list, visit history and payment status.
+
+Consultation fees and medication bills are separate. Doctors can add structured medicines and quantities to a consultation. A pharmacist reviews stock and the medicines to supply; those items are priced separately from the appointment fee. Patients can pay medication balances through the patient portal or a cashier can record clinic payments. Dispensing and pharmacy clearance remain locked until the complete medication fee is paid and every prescribed item has a final outcome. A downloadable PDF receipt is available for each completed payment transaction.
+
+To load the optional Uganda starter medicine catalogue without seeding demo users or appointments, run `php artisan db:seed --class=UgandaStarterMedicinesSeeder`. Admins can change a doctor's consultation fee at any time from **Clinic pricing**; new bookings use the updated fee while existing appointments keep their recorded fee.
+
+Laboratory services use the `lab-technician` role. Run `php artisan db:seed --class=RolesAndPermissionsSeeder` to refresh roles and permissions, then seed the starter test catalogue with `php artisan db:seed --class=UgandaStarterLabTestsSeeder`. Doctors can add referrals during consultation, while patients can book a consultation or book specific tests from **My appointments**. Lab invoices appear with other balances in **My payments**; laboratory staff can collect/process and finalize results only after the full laboratory bill is paid. Referral results and invoice are attached to the appointment, and pharmacy clearance checks that linked tests are completed and all visit balances are settled.
 
 Public registration is disabled. Staff create patient records and may create a patient portal account for them. Seeded demo users share the password `password`; change these credentials before using a deployed environment.
 

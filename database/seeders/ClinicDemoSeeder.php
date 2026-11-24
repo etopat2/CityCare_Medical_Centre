@@ -13,8 +13,10 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 
+/** Seeds clinic demo records used by the clinic application and local demo data. */
 class ClinicDemoSeeder extends Seeder
 {
+    /** Creates demo users, clinic departments, patient records, doctors, schedules, and sample visits. */
     public function run(): void
     {
         $receptionist = $this->account('Front Desk Reception', 'reception@citycare.com', '0772000002', 'receptionist');

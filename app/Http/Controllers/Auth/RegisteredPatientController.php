@@ -12,13 +12,22 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Registers public patient accounts and creates their linked patient profiles.
+ */
 class RegisteredPatientController extends Controller
 {
+    /**
+     * Returns the form or initial state needed to create a registered patient record.
+     */
     public function create(): View
     {
         return view('auth.register-patient');
     }
 
+    /**
+     * Validates and persists a new registered patient record, then returns the appropriate response.
+     */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([

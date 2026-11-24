@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/** Runs the default database seed sequence for roles, permissions, and the clinic demo records. */
 class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;

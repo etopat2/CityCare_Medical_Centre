@@ -8,6 +8,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
+/**
+ * Defines authorization and input validation rules for the store appointment request workflow.
+ */
 class StoreAppointmentRequest extends FormRequest
 {
     /**
@@ -34,6 +37,19 @@ class StoreAppointmentRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalizes incoming values before the validator evaluates them.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->user()?->hasRole('patient')) {
+            $this->merge(['patient_id' => $this->user()->patient?->id]);
+        }
+    }
+
+    /**
+     * Adds cross-field validation checks that depend on the validated request context.
+     */
     public function after(): array
     {
         return [function (Validator $validator): void {

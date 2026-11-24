@@ -14,8 +14,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
+/**
+ * Manages doctor profiles and their linked user accounts and departments.
+ */
 class DoctorController extends Controller
 {
+    /**
+     * Builds the doctor listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         $doctors = Doctor::query()
@@ -36,6 +42,9 @@ class DoctorController extends Controller
         return view('doctors.index', compact('doctors', 'departments'));
     }
 
+    /**
+     * Returns the form or initial state needed to create a doctor record.
+     */
     public function create(): View
     {
         $departments = Department::where('is_active', true)->orderBy('name')->get();
@@ -43,6 +52,9 @@ class DoctorController extends Controller
         return view('doctors.create', compact('departments'));
     }
 
+    /**
+     * Validates and persists a new doctor record, then returns the appropriate response.
+     */
     public function store(StoreDoctorRequest $request): RedirectResponse
     {
         $data = $request->validated();
@@ -70,9 +82,12 @@ class DoctorController extends Controller
             ]);
         });
 
-        return redirect()->route('doctors.edit', $doctor)->with('success', 'Doctor account created.');
+        return redirect()->route('doctors.create')->with('success', 'Doctor account created. You can add another doctor now.');
     }
 
+    /**
+     * Loads the requested doctor record and presents its associated details.
+     */
     public function show(Doctor $doctor): View
     {
         $doctor->load(['user', 'department', 'schedules']);
@@ -80,6 +95,9 @@ class DoctorController extends Controller
         return view('doctors.show', compact('doctor'));
     }
 
+    /**
+     * Loads the doctor record and edit data required by its form.
+     */
     public function edit(Doctor $doctor): View
     {
         $doctor->load('user');
@@ -88,6 +106,9 @@ class DoctorController extends Controller
         return view('doctors.edit', compact('doctor', 'departments'));
     }
 
+    /**
+     * Validates and applies changes to the doctor record, preserving its related business rules.
+     */
     public function update(UpdateDoctorRequest $request, Doctor $doctor): RedirectResponse
     {
         $data = $request->validated();
@@ -114,6 +135,9 @@ class DoctorController extends Controller
         return redirect()->route('doctors.index')->with('success', 'Doctor updated.');
     }
 
+    /**
+     * Applies the deletion or archival rules for the doctor record and reports the result.
+     */
     public function destroy(Doctor $doctor): RedirectResponse
     {
         abort_unless(request()->user()->can('doctors.manage'), 403);

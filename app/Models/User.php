@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * Represents a sign-in account and its clinic roles, profile links, and effective permission rules.
+ */
 #[Fillable(['name', 'email', 'phone', 'password', 'is_active'])]
 #[Hidden(['password', 'remember_token', 'avatar_path'])]
 class User extends Authenticatable
@@ -29,9 +32,7 @@ class User extends Authenticatable
     private ?array $rolePermissionDenials = null;
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * Defines how date, money, and boolean attributes are converted when the model is read from or written to storage.
      */
     protected function casts(): array
     {
@@ -42,16 +43,25 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Defines the doctor association as an Eloquent one-to-one link to the Doctor model.
+     */
     public function doctor(): HasOne
     {
         return $this->hasOne(Doctor::class);
     }
 
+    /**
+     * Defines the patient association as an Eloquent one-to-one link to the Patient model.
+     */
     public function patient(): HasOne
     {
         return $this->hasOne(Patient::class);
     }
 
+    /**
+     * Applies per-user allow/deny overrides and role permissions before returning the access decision.
+     */
     public function hasPermissionTo($permission, ?string $guardName = null): bool
     {
         $wildcardClass = $this->getWildcardClass();
@@ -84,12 +94,18 @@ class User extends Authenticatable
         return $this->hasDirectPermission($permission) || $this->hasPermissionViaRole($permission);
     }
 
+    /**
+     * Clears this instance?s cached permission overrides after its access rules change.
+     */
     public function forgetCustomPermissionRules(): void
     {
         $this->userPermissionOverrides = null;
         $this->rolePermissionDenials = null;
     }
 
+    /**
+     * Returns a versioned profile-photo URL or the shared default avatar when no photo is stored.
+     */
     public function avatarUrl(): string
     {
         return $this->avatar_path !== null
@@ -97,6 +113,9 @@ class User extends Authenticatable
             : asset('images/avatar-default.svg');
     }
 
+    /**
+     * Loads user overrides and role denials once, caching them for subsequent permission checks.
+     */
     private function loadCustomPermissionRules(): void
     {
         if ($this->userPermissionOverrides !== null && $this->rolePermissionDenials !== null) {

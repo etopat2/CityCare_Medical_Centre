@@ -11,6 +11,8 @@ use App\Http\Controllers\Auth\PasswordResetOtpController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
+// Sign-in and password-reset endpoints are only available before authentication.
+// Throttles protect OTP verification, resend, and reset actions from repeated attempts.
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
@@ -47,6 +49,7 @@ Route::middleware('guest')->group(function () {
         ->name('password.otp.resend');
 });
 
+// Email verification, password confirmation, credential changes, and sign-out require a session.
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');

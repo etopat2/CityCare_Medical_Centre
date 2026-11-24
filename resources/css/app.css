@@ -6,12 +6,76 @@
     display: none !important;
 }
 
+.app-navigation-progress {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 1000;
+    height: 3px;
+    overflow: hidden;
+    background: rgb(15 118 110 / 12%);
+}
+
+.app-navigation-progress[hidden] {
+    display: none;
+}
+
+.app-navigation-progress__bar {
+    display: block;
+    width: 38%;
+    height: 100%;
+    border-radius: 9999px;
+    background: #0f766e;
+    animation: app-navigation-progress 1.15s ease-in-out infinite;
+}
+
+.app-button-spinner {
+    display: inline-block;
+    width: 0.875rem;
+    height: 0.875rem;
+    flex: 0 0 auto;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    animation: app-button-spin 0.8s linear infinite;
+}
+
+@keyframes app-button-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes app-navigation-progress {
+    0% { transform: translateX(-110%); }
+    100% { transform: translateX(370%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-navigation-progress__bar { animation-duration: 2.8s; }
+}
+
 #payment-method-modal:not([open]) {
     display: none !important;
 }
 
 #payment-method-modal[open] {
     display: flex;
+}
+
+.app-confirm-dialog:not([open]) {
+    display: none !important;
+}
+
+.app-confirm-dialog[open] {
+    display: block;
+    box-shadow: 0 28px 90px rgb(2 6 23 / 42%), 0 8px 24px rgb(2 6 23 / 12%);
+}
+
+.app-confirm-dialog::backdrop {
+    background: rgb(15 23 42 / 58%);
+    backdrop-filter: blur(5px);
+}
+
+#payment-method-modal[open] {
+    box-shadow: 0 32px 100px rgb(2 6 23 / 44%), 0 10px 30px rgb(2 6 23 / 16%);
 }
 
 .toastify.citycare-toast {

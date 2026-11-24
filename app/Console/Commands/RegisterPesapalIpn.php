@@ -4,14 +4,19 @@ namespace App\Console\Commands;
 
 use App\Services\PesapalService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\URL;
 
+/**
+ * Provides the register pesapal ipn application component and its related behavior.
+ */
 class RegisterPesapalIpn extends Command
 {
     protected $signature = 'pesapal:register-ipn';
 
     protected $description = 'Register CityCare’s Pesapal payment notification URL';
 
+    /**
+     * Runs the middleware or command workflow and returns its result.
+     */
     public function handle(PesapalService $pesapal): int
     {
         if (blank(config('services.pesapal.consumer_key')) || blank(config('services.pesapal.consumer_secret'))) {
@@ -20,7 +25,7 @@ class RegisterPesapalIpn extends Command
             return self::FAILURE;
         }
 
-        $url = URL::route('payments.pesapal.ipn');
+        $url = $pesapal->publicRoute('payments.pesapal.ipn');
 
         try {
             $result = $pesapal->registerIpn($url);

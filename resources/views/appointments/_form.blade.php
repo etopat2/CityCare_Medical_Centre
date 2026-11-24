@@ -3,7 +3,7 @@
     @csrf @if($appointment) @method('PUT') @endif
     @if($appointment)<input type="hidden" name="appointment_id" value="{{ $appointment->id }}">@endif
     <div class="grid gap-5 md:grid-cols-2">
-        <div class="relative md:col-span-2"><x-input-label for="patient-search" value="Find patient"/><input id="patient-search" type="search" autocomplete="off" value="{{ old('patient_search',$currentPatient ? $currentPatient->first_name.' '.$currentPatient->last_name.' · '.$currentPatient->patient_number : '') }}" placeholder="Search name, patient number or phone" class="mt-1 block w-full rounded-lg border-slate-300" aria-controls="patient-results" aria-expanded="false"><input id="patient_id" type="hidden" name="patient_id" value="{{ old('patient_id',$currentPatient?->id) }}"><div id="patient-results" role="listbox" class="absolute z-20 mt-1 hidden max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"></div><p id="patient-selection" class="mt-1 text-xs text-slate-500">Choose a saved patient record.</p><x-input-error :messages="$errors->get('patient_id')" class="mt-2"/></div>
+    @if(auth()->user()->hasRole('patient'))<input id="patient_id" type="hidden" name="patient_id" value="{{ $currentPatient?->id }}"><div class="rounded-xl bg-teal-50 p-4 text-sm text-teal-900 md:col-span-2"><span class="font-semibold">Booking for:</span> {{ $currentPatient?->first_name }} {{ $currentPatient?->last_name }} · {{ $currentPatient?->patient_number }}</div>@else<div class="relative md:col-span-2"><x-input-label for="patient-search" value="Find patient"/><input id="patient-search" type="search" autocomplete="off" value="{{ old('patient_search',$currentPatient ? $currentPatient->first_name.' '.$currentPatient->last_name.' · '.$currentPatient->patient_number : '') }}" placeholder="Search name, patient number or phone" class="mt-1 block w-full rounded-lg border-slate-300" aria-controls="patient-results" aria-expanded="false"><input id="patient_id" type="hidden" name="patient_id" value="{{ old('patient_id',$currentPatient?->id) }}"><div id="patient-results" role="listbox" class="absolute z-20 mt-1 hidden max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"></div><p id="patient-selection" class="mt-1 text-xs text-slate-500">Choose a saved patient record.</p><x-input-error :messages="$errors->get('patient_id')" class="mt-2"/></div>@endif
         <div><x-input-label for="department-filter" value="Department"/><select id="department-filter" class="mt-1 block w-full rounded-lg border-slate-300"><option value="">All departments</option>@foreach($doctors->pluck('department')->unique('id') as $department)<option value="{{ $department->id }}">{{ $department->name }}</option>@endforeach</select></div>
         <div><x-input-label for="doctor_id" value="Doctor"/><select id="doctor_id" name="doctor_id" class="mt-1 block w-full rounded-lg border-slate-300" required><option value="">Choose a doctor</option>@foreach($doctors as $doctor)<option value="{{ $doctor->id }}" data-department="{{ $doctor->department_id }}" @selected(old('doctor_id',$appointment?->doctor_id)===$doctor->id)>{{ $doctor->user->name }} · {{ $doctor->specialization }}</option>@endforeach</select><x-input-error :messages="$errors->get('doctor_id')" class="mt-2"/></div>
         <div><x-input-label for="appointment_date" value="Appointment date"/><x-text-input id="appointment_date" name="appointment_date" type="date" min="{{ now()->toDateString() }}" class="mt-1 block w-full" :value="old('appointment_date',$appointment?->appointment_date?->format('Y-m-d'))" required/><x-input-error :messages="$errors->get('appointment_date')" class="mt-2"/></div>
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeSelect = document.getElementById('start_time');
     const availability = document.getElementById('availability');
     const appointmentId = form.querySelector('[name="appointment_id"]')?.value;
-    const currentPatient = patientId.value ? patientSearch.value : '';
+    const currentPatient = patientId.value ? (patientSearch?.value || 'patient') : '';
     let searchTimer;
 
     const loadSlots = async () => {
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         patientSearch.setAttribute('aria-expanded', patients.length ? 'true' : 'false');
     };
 
-    patientSearch.addEventListener('input', () => {
+    patientSearch?.addEventListener('input', () => {
         patientId.value = '';
         patientSelection.textContent = 'Choose a saved patient record.';
         clearTimeout(searchTimer);
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     doctorSelect.addEventListener('change', loadSlots);
     dateInput.addEventListener('change', loadSlots);
     form.addEventListener('submit', event => { if (!patientId.value) { event.preventDefault(); window.CityCareToast('Select a saved patient from the search results.', 'warning'); } });
-    if (currentPatient) patientSelection.textContent = 'Patient record selected.';
+    if (currentPatient && patientSelection) patientSelection.textContent = 'Patient record selected.';
     if (doctorSelect.value && dateInput.value) loadSlots();
 });
 </script>

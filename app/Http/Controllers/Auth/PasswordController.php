@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
+/**
+ * Validates and updates the signed-in user?s current password.
+ */
 class PasswordController extends Controller
 {
     /**

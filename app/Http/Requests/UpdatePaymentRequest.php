@@ -6,6 +6,9 @@ use App\Models\Payment;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Defines authorization and input validation rules for the update payment request workflow.
+ */
 class UpdatePaymentRequest extends FormRequest
 {
     /**

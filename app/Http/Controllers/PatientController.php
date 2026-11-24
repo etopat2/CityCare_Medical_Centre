@@ -11,8 +11,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Manages patient profiles and the associated user accounts used for portal access.
+ */
 class PatientController extends Controller
 {
+    /**
+     * Builds the patient listing with the applicable filters, summary data, and pagination.
+     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', Patient::class);
@@ -43,6 +49,9 @@ class PatientController extends Controller
         return view('patients.index', compact('patients'));
     }
 
+    /**
+     * Returns the form or initial state needed to create a patient record.
+     */
     public function create(Request $request): View
     {
         $this->authorize('create', Patient::class);
@@ -61,6 +70,9 @@ class PatientController extends Controller
         return view('patients.create', compact('duplicates'));
     }
 
+    /**
+     * Validates and persists a new patient record, then returns the appropriate response.
+     */
     public function store(StorePatientRequest $request): RedirectResponse
     {
         $data = $request->validated();
@@ -90,14 +102,20 @@ class PatientController extends Controller
         return redirect()->route('patients.show', $patient)->with('success', 'Patient record created.');
     }
 
+    /**
+     * Loads the requested patient record and presents its associated details.
+     */
     public function show(Patient $patient): View
     {
         $this->authorize('view', $patient);
-        $patient->load(['consultations' => fn ($query) => $query->with(['doctor.user', 'appointment'])->latest(), 'appointments.doctor.user', 'payments']);
+        $patient->load(['consultations' => fn ($query) => $query->with(['doctor.user', 'appointment.doctor', 'appointment.payment'])->latest(), 'appointments.doctor.user', 'payments']);
 
         return view('patients.show', compact('patient'));
     }
 
+    /**
+     * Loads the patient record and edit data required by its form.
+     */
     public function edit(Patient $patient): View
     {
         $this->authorize('update', $patient);
@@ -105,6 +123,9 @@ class PatientController extends Controller
         return view('patients.edit', compact('patient'));
     }
 
+    /**
+     * Validates and applies changes to the patient record, preserving its related business rules.
+     */
     public function update(UpdatePatientRequest $request, Patient $patient): RedirectResponse
     {
         $data = $request->validated();
@@ -121,6 +142,9 @@ class PatientController extends Controller
         return redirect()->route('patients.show', $patient)->with('success', 'Patient record updated.');
     }
 
+    /**
+     * Applies the deletion or archival rules for the patient record and reports the result.
+     */
     public function destroy(Patient $patient): RedirectResponse
     {
         $this->authorize('delete', $patient);

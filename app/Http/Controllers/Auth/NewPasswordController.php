@@ -14,6 +14,9 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Accepts a valid password reset token and saves the replacement password.
+ */
 class NewPasswordController extends Controller
 {
     /**
